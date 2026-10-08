@@ -526,8 +526,7 @@ kbd {
   top: 0;
   z-index: 2;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px;
   margin: 0;
   padding: 8px 18px;
   border-bottom: 1px solid var(--border);
@@ -535,6 +534,22 @@ kbd {
   background: #1d2125;
   font-size: 0.82rem;
   font-weight: 600;
+  container-type: scroll-state;
+}
+
+/* Saat judul menempel, posisinya bisa bergeser beberapa piksel dari tepi atas
+   area scroll (DPR pecahan, scroll elastis), dan isi daftar terlihat di celah itu.
+   Blok di atas judul menutup celah tersebut; tanpa celah, blok ini terpotong overflow. */
+@container scroll-state(stuck: top) {
+  .group-title::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: 8px;
+    background: #1d2125;
+  }
 }
 
 .group-title:focus {

@@ -473,11 +473,8 @@ function updateResultsTitle() {
 // ---------- Render ----------
 
 function updateStationCount() {
-  const favoriteTotal = favoriteGroup.hidden ? 0 : favoriteList.querySelectorAll(".card").length;
   const resultTotal = stationList.querySelectorAll(".card").length;
-  stationCount.textContent = favoriteTotal
-    ? `${favoriteTotal} favorit • ${resultTotal} radio`
-    : `${resultTotal} radio`;
+  stationCount.textContent = `${resultTotal} radio`;
 }
 
 function renderStations() {
@@ -519,7 +516,7 @@ function renderStations() {
 function renderFavorites() {
   const list = visibleFavorites();
   favoriteGroup.hidden = list.length === 0;
-  favoriteCount.textContent = `${list.length} radio`;
+  favoriteCount.textContent = `(${list.length})`;
   favoriteList.innerHTML = list.map(createStationCard).join("");
   updateStationCount();
 }
