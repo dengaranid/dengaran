@@ -45,6 +45,7 @@ const FAVORITE_KEY = "radio_online_favorites_v1";
 const LAST_STATION_KEY = "radio_online_last_station_v1";
 const HISTORY_KEY = "radio_online_history_v1";
 const VOLUME_KEY = "radio_online_volume_v1";
+const SHORTCUTS_KEY = "radio_online_shortcuts_v1";
 
 // Fallback jika endpoint /countries gagal dimuat.
 const FALLBACK_COUNTRIES = [
@@ -115,6 +116,9 @@ const historySection = document.getElementById("historySection");
 const appShell = document.querySelector(".app");
 const heroHeader = document.querySelector(".hero");
 const shortcutHint = document.querySelector(".shortcut-hint");
+const shortcutOnText = document.getElementById("shortcutOnText");
+const shortcutOffText = document.getElementById("shortcutOffText");
+const shortcutToggle = document.getElementById("shortcutToggle");
 const historyList = document.getElementById("historyList");
 const historyCount = document.getElementById("historyCount");
 const loadMoreButton = document.getElementById("loadMoreButton");
@@ -165,6 +169,8 @@ let toastRemaining = 0;
 let toastStartedAt = 0;
 let toastPaused = false;
 let toastActionHandler = null;
+// Pintasan satu huruf bisa dimatikan (WCAG 2.1.4). Nilai selain false dianggap aktif.
+let shortcutsEnabled = loadJson(SHORTCUTS_KEY, true) !== false;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -238,12 +244,19 @@ toast.addEventListener("focusout", resumeToast);
 });
 
 document.addEventListener("keydown", handleShortcut);
+shortcutToggle.addEventListener("click", () => {
+  shortcutsEnabled = !shortcutsEnabled;
+  saveJson(SHORTCUTS_KEY, shortcutsEnabled);
+  updateShortcutUI();
+  updateLayoutHeight();
+});
 
 setupDialogs();
 
 async function init() {
   renderHistory();
   restoreVolume();
+  updateShortcutUI();
   restoreLastStation();
   updatePlaybackUI();
   observeLayout();
@@ -842,7 +855,7 @@ function handleShortcut(event) {
     return;
   }
 
-  if (isTyping) return;
+  if (isTyping || !shortcutsEnabled) return;
 
   const key = event.key.toLowerCase();
 
@@ -1115,6 +1128,12 @@ function updateVolumeUI() {
   volumeInput.setAttribute("aria-valuetext", `${percent}%`);
   volumeValue.textContent = `${percent}%`;
   volumeControl.classList.toggle("is-muted", audioPlayer.muted);
+}
+
+function updateShortcutUI() {
+  shortcutOnText.hidden = !shortcutsEnabled;
+  shortcutOffText.hidden = shortcutsEnabled;
+  shortcutToggle.textContent = shortcutsEnabled ? "Matikan pintasan" : "Aktifkan pintasan";
 }
 
 function restoreVolume() {

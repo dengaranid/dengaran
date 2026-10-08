@@ -215,8 +215,12 @@
     </div>
 
     <p class="shortcut-hint">
-      Pintasan: <kbd>/</kbd> cari, <kbd>Spasi</kbd> putar atau stop,
-      <kbd>N</kbd> <kbd>P</kbd> stasiun berikutnya atau sebelumnya, <kbd>M</kbd> bisukan.
+      <span id="shortcutOnText">
+        Pintasan: <kbd>/</kbd> cari, <kbd>Spasi</kbd> putar atau stop,
+        <kbd>N</kbd> <kbd>P</kbd> stasiun berikutnya atau sebelumnya, <kbd>M</kbd> bisukan.
+      </span>
+      <span id="shortcutOffText" hidden>Pintasan keyboard nonaktif.</span>
+      <button id="shortcutToggle" class="shortcut-toggle" type="button">Matikan pintasan</button>
     </p>
 
     <p id="resultAnnouncer" class="visually-hidden" role="status" aria-live="polite"></p>
