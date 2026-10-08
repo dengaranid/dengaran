@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Dengaran: Dengar Radio Hari Ini</title>
+  <meta
+    name="description"
+    content="Dengarkan ribuan stasiun radio online dari Indonesia dan negara lain langsung di browser. Gratis, tanpa iklan, tanpa daftar akun."
+  />
+  <meta name="theme-color" content="#0f1113" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Dengaran" />
+  <meta property="og:locale" content="id_ID" />
+  <meta property="og:title" content="Dengaran: Dengar Radio Hari Ini" />
+  <meta
+    property="og:description"
+    content="Ribuan stasiun radio online dari Indonesia dan negara lain. Gratis, tanpa iklan, tanpa daftar akun."
+  />
+  <meta name="twitter:card" content="summary_large_image" />
+  <!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <a class="skip-link" href="#radioScroll">Langsung ke daftar radio</a>
+  <a class="skip-link" href="#miniPlayer">Langsung ke pemutar</a>
+
+  <noscript>
+    <p class="noscript">
+      Dengaran membutuhkan JavaScript untuk mencari dan memutar stasiun radio.
+      Aktifkan JavaScript di browser Anda, lalu muat ulang halaman ini.
+    </p>
+  </noscript>
+
+  <div class="app">
+    <header class="hero">
+      <div class="brand">
+        <h1>Dengaran</h1>
+        <p class="tagline">Dengar radio hari ini</p>
+      </div>
+
+      <div class="hero-actions">
+        <span class="attribution">
+          Data: <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>
+        </span>
+        <button class="hero-button" type="button" data-open-dialog="supportDialog">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
+          Dukung
+        </button>
+        <button class="hero-button" type="button" data-open-dialog="legalDialog">Tentang</button>
+      </div>
+    </header>
+
+    <div class="window">
+      <form id="controls" class="controls" role="search" aria-label="Cari radio">
+        <div class="controls-search">
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Cari nama radio..."
+            autocomplete="off"
+            enterkeyhint="search"
+            aria-label="Cari nama radio"
+          />
+          <button
+            id="searchClearButton"
+            class="search-clear"
+            type="button"
+            title="Hapus pencarian"
+            aria-label="Hapus pencarian"
+            hidden
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <div class="controls-filters">
+          <select id="countrySelect" aria-label="Negara">
+            <option value="ID" selected>Indonesia</option>
+          </select>
+
+          <select id="sortSelect" aria-label="Urutkan">
+            <option value="clickcount" selected>Terpopuler</option>
+            <option value="votes">Paling disukai</option>
+            <option value="name">Nama A-Z</option>
+            <option value="bitrate">Bitrate tertinggi</option>
+          </select>
+        </div>
+
+        <div id="activeFilter" class="active-filter" hidden>
+          <span>Genre: <strong id="activeTagLabel"></strong></span>
+          <button id="clearTagButton" class="filter-clear" type="button">Hapus filter genre</button>
+        </div>
+      </form>
+
+      <main id="layout" class="layout" data-view="radio">
+        <section id="radioSection" class="section" aria-labelledby="radioHeading">
+          <div class="section-header">
+            <h2 id="radioHeading">Daftar Radio</h2>
+            <span id="stationCount" class="count">0 radio</span>
+          </div>
+
+          <div id="radioScroll" class="panel-scroll" tabindex="-1">
+            <div id="favoriteGroup" class="group" hidden>
+              <h3 class="group-title">
+                <span>Favorit</span>
+                <span id="favoriteCount"></span>
+              </h3>
+              <div id="favoriteList" class="list"></div>
+            </div>
+
+            <div class="group">
+              <h3 id="resultsTitle" class="group-title" tabindex="-1">
+                <span id="resultsTitleText">Radio</span>
+              </h3>
+              <div id="stationList" class="list">
+                <div class="loading">Memuat daftar radio...</div>
+              </div>
+
+              <div class="list-footer">
+                <button id="loadMoreButton" class="btn" type="button" hidden>
+                  Muat lebih banyak
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="historySection" class="section" aria-labelledby="historyHeading">
+          <div class="section-header">
+            <h2 id="historyHeading">Baru diputar</h2>
+            <span id="historyCount" class="count">0 radio</span>
+          </div>
+
+          <div class="panel-scroll">
+            <ol id="historyList" class="row-list"></ol>
+          </div>
+        </section>
+      </main>
+
+      <section id="miniPlayer" class="player is-empty" tabindex="-1" aria-label="Pemutar radio">
+        <div id="playerArt" class="logo-wrap" aria-hidden="true"></div>
+
+        <div class="player-info">
+          <p id="nowPlaying" class="now-playing">Belum ada radio diputar</p>
+          <p class="player-status">
+            <span id="liveBadge" class="live-badge" hidden>LIVE</span>
+            <span id="playerStatus" role="status" aria-live="polite">Pilih radio lalu tekan Putar.</span>
+            <span id="listenTime" class="listen-time" aria-hidden="true" hidden>0:00</span>
+          </p>
+        </div>
+
+        <div class="player-controls">
+          <button
+            id="retryButton"
+            class="icon-btn is-plain"
+            type="button"
+            title="Coba putar lagi"
+            aria-label="Coba putar lagi"
+            hidden
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+
+          <button
+            id="miniPlayButton"
+            class="icon-btn play-main btn-play"
+            type="button"
+            title="Putar"
+            aria-label="Putar"
+            disabled
+          ></button>
+
+          <button
+            id="closePlayerButton"
+            class="icon-btn is-plain"
+            type="button"
+            title="Tutup pemutar"
+            aria-label="Tutup pemutar"
+            disabled
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+
+        <div id="volumeControl" class="volume">
+          <button
+            id="muteButton"
+            class="icon-btn"
+            type="button"
+            title="Bisukan (M)"
+            aria-label="Bisukan"
+            aria-pressed="false"
+          ></button>
+          <input id="volumeInput" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
+          <span id="volumeValue" class="volume-value" aria-hidden="true">100%</span>
+        </div>
+
+        <!-- Satu elemen audio agar hanya satu stream aktif. Tanpa controls: kontrol ada di player. -->
+        <audio id="audioPlayer" preload="none"></audio>
+      </section>
+
+      <nav class="mobile-nav" aria-label="Navigasi mobile">
+        <button id="navSearchButton" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          Cari
+        </button>
+        <button type="button" data-view="radio" aria-pressed="true">Radio</button>
+        <button type="button" data-view="history" aria-pressed="false">Baru diputar</button>
+      </nav>
+
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+        <p id="toastText" class="toast-text"></p>
+        <button id="toastAction" class="toast-action" type="button" hidden></button>
+      </div>
+    </div>
+
+    <p class="shortcut-hint">
+      Pintasan: <kbd>/</kbd> cari, <kbd>Spasi</kbd> putar atau stop,
+      <kbd>N</kbd> <kbd>P</kbd> stasiun berikutnya atau sebelumnya, <kbd>M</kbd> bisukan.
+    </p>
+
+    <p id="resultAnnouncer" class="visually-hidden" role="status" aria-live="polite"></p>
+  </div>
+
+  <dialog id="supportDialog" class="dialog" aria-labelledby="supportTitle">
+    <div class="dialog-header">
+      <h2 id="supportTitle">Dukung Dengaran</h2>
+      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="dialog-body">
+      <div class="support-layout">
+        <p>
+          Dengaran gratis, tanpa iklan, dan tanpa pelacakan. Kalau Anda sering memakai aplikasi
+          ini, Anda bisa mentraktir kopi untuk pembuatnya.
+        </p>
+        <a id="supportLink" class="support-cta" href="#" target="_blank" rel="noopener">
+          <span>Dukung lewat <span data-fill="platform"></span></span>
+        </a>
+        <p class="dialog-note">
+          Pembayaran diproses oleh <span data-fill="platform"></span>, bukan oleh aplikasi ini.
+          Aplikasi ini tidak menyimpan data pembayaran apa pun.
+        </p>
+      </div>
+
+      <h3>Dukung juga sumber datanya</h3>
+      <p>
+        Daftar stasiun berasal dari
+        <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
+        layanan komunitas yang juga dibiayai donasi.
+      </p>
+    </div>
+  </dialog>
+
+  <dialog id="legalDialog" class="dialog" aria-labelledby="legalTitle">
+    <div class="dialog-header">
+      <h2 id="legalTitle">Tentang Dengaran</h2>
+      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="dialog-body">
+      <h3>Sumber data</h3>
+      <p>
+        Nama stasiun, logo, negara, bahasa, dan tag diambil dari
+        <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
+        basis data stasiun radio yang diisi oleh komunitas. Ketentuan penggunaan data mengikuti
+        ketentuan di situs tersebut. Kesalahan data stasiun bisa dilaporkan langsung ke Radio Browser.
+      </p>
+
+      <h3>Hak cipta dan merek</h3>
+      <p>
+        Siaran, nama, dan logo adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
+        dengan stasiun mana pun. Aplikasi ini tidak menyimpan, merekam, atau menyiarkan ulang audio:
+        browser Anda terhubung langsung ke server milik stasiun.
+      </p>
+
+      <h3>Tanpa jaminan</h3>
+      <p>
+        Stream bisa berhenti, berpindah alamat, atau isinya berbeda dari data yang tercantum.
+        Isi siaran sepenuhnya tanggung jawab stasiun yang menyiarkannya.
+      </p>
+
+      <h3>Privasi</h3>
+      <ul>
+        <li>
+          Favorit, Baru diputar, volume, dan stasiun terakhir disimpan di browser Anda
+          (<code>localStorage</code>), tidak dikirim ke server aplikasi ini.
+        </li>
+        <li>Tidak ada cookie, iklan, atau analytics.</li>
+        <li>
+          Saat mencari dan memutar radio, browser Anda menghubungi Radio Browser, server stream
+          stasiun, dan server logo stasiun. Pihak-pihak itu dapat melihat alamat IP Anda.
+        </li>
+        <li>
+          Tombol tutup pada pemutar menghapus stasiun terakhir. Data lainnya terhapus jika Anda
+          menghapus data situs ini di pengaturan browser.
+        </li>
+      </ul>
+
+      <h3>Kontak</h3>
+      <p>
+        Pemilik stasiun atau pemegang hak cipta yang ingin stasiunnya tidak ditampilkan di aplikasi
+        ini dapat menghubungi <a id="contactLink" href="#"><span data-fill="email"></span></a>.
+        Stasiun tersebut akan disembunyikan dari aplikasi ini. Data stasiun di Radio Browser
+        dikelola oleh Radio Browser.
+      </p>
+
+      <p class="dialog-note">
+        Dikelola oleh <span data-fill="owner"></span>. Terakhir diperbarui
+        <span data-fill="updated"></span>.
+      </p>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
