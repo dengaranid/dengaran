@@ -147,6 +147,8 @@ let currentStation = null;
 let isPlaying = false;
 let isConnecting = false;
 let isBuffering = false;
+// Posisi audio saat status menunggu dimulai. Kalau currentTime melewati nilai ini, audio masih berjalan.
+let bufferingStartTime = 0;
 let activeTag = "";
 let currentOffset = 0;
 let hasMore = false;
@@ -190,9 +192,7 @@ audioPlayer.addEventListener("pause", handleAudioPause);
 audioPlayer.addEventListener("playing", handleAudioPlaying);
 audioPlayer.addEventListener("waiting", handleAudioWaiting);
 audioPlayer.addEventListener("stalled", handleAudioWaiting);
-audioPlayer.addEventListener("timeupdate", () => {
-  if (isPlaying && !isBuffering) listenTime.textContent = formatTime(audioPlayer.currentTime);
-});
+audioPlayer.addEventListener("timeupdate", handleAudioTimeUpdate);
 audioPlayer.addEventListener("error", handleAudioError);
 
 miniPlayButton.addEventListener("click", handleMiniPlayButton);
@@ -1062,9 +1062,20 @@ function handleAudioWaiting() {
   if (!currentStation || !isPlaying || isBuffering) return;
 
   isBuffering = true;
+  bufferingStartTime = audioPlayer.currentTime;
   showStatus("Menunggu data stream...");
   stallTimer = failAfter(STALL_TIMEOUT_MS, currentStation, playRequestId);
   updatePlaybackUI();
+}
+
+// Chrome mengirim "stalled" kalau data stream tidak datang sekitar 3 detik, walau audio masih
+// berjalan dari buffer. Event "playing" tidak menyusul karena audio tidak pernah berhenti, jadi
+// tanpa pengecekan ini timer STALL_TIMEOUT_MS menghentikan stream yang masih berbunyi.
+function handleAudioTimeUpdate() {
+  if (isBuffering && !audioPlayer.paused && audioPlayer.currentTime > bufferingStartTime) {
+    handleAudioPlaying();
+  }
+  if (isPlaying && !isBuffering) listenTime.textContent = formatTime(audioPlayer.currentTime);
 }
 
 function handleAudioPlaying() {

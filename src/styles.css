@@ -592,9 +592,14 @@ kbd {
   text-overflow: ellipsis;
 }
 
+/* Tag yang tidak muat turun ke baris kedua, dan baris kedua itu dipotong oleh height dan
+   overflow. Hasilnya hanya tag utuh yang tampil, dan tag tidak melebar ke kolom tombol. */
 .card-sub .tags {
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  height: 22px;
+  overflow: hidden;
 }
 
 .card:last-child {
@@ -1205,7 +1210,8 @@ kbd {
     row-gap: 4px;
   }
 
-  .card-sub .meta {
+  .card-sub .meta,
+  .card-sub .tags {
     flex-basis: 100%;
   }
 }
