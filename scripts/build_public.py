@@ -35,7 +35,7 @@ SITE_URL = "https://dengaran.pages.dev"
 
 SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->"
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
-JS_TAG = '<script src="app.js"></script>'
+JS_TAG = '<script defer src="app.js"></script>'
 ASSET_FILES = ["favicon.svg", "apple-touch-icon.png", "og-image.png"]
 
 # Token Cloudflare Web Analytics, dari dashboard: Analytics & Logs > Web Analytics > Add a site.
@@ -294,8 +294,9 @@ def build_csp():
         "img-src 'self' https: data:",
         # Stream audio dari server stasiun mana pun. Halaman HTTPS hanya bisa memutar https:.
         "media-src https:",
+        # 'self' supaya Lighthouse bisa mengambil /robots.txt dari dalam halaman (audit SEO).
         # API Radio Browser, plus endpoint laporan analytics kalau CF_ANALYTICS_TOKEN diisi.
-        "connect-src " + " ".join(connect_hosts),
+        " ".join(["connect-src 'self'"] + connect_hosts),
         "base-uri 'none'",
         "form-action 'none'",
         "frame-ancestors 'none'",
@@ -332,7 +333,7 @@ def main():
 
     html = html.replace(SEO_MARKER, seo_tags(html))
     html = html.replace(CSS_TAG, f'<link rel="stylesheet" href="{css_name}" />')
-    js_tags = f'<script src="{js_name}"></script>'
+    js_tags = f'<script defer src="{js_name}"></script>'
     if CF_ANALYTICS_TOKEN:
         js_tags += "\n  " + analytics_tag()
     html = html.replace(JS_TAG, js_tags)
