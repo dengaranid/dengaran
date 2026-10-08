@@ -10,7 +10,7 @@ const API_MIRRORS = [
 // Isian dialog Tentang dan Dukung.
 // Ubah legalUpdated setiap kali isi dialog Tentang diubah.
 const SITE_INFO = {
-  owner: "Dengaran",
+  owner: "DengaranId",
   email: "dengaranid@gmail.com",
   supportPlatform: "Saweria",
   supportUrl: "https://saweria.co/dengaranid",

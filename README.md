@@ -2,7 +2,7 @@
 
 Dengar radio hari ini.
 
-Dengaran adalah aplikasi web untuk mencari dan memutar stasiun radio dari Indonesia dan negara lain langsung di browser. Data stasiun diambil dari [Radio Browser](https://www.radio-browser.info). Gratis, tanpa iklan, tanpa daftar akun, dan tanpa analytics.
+Dengaran adalah aplikasi web untuk mencari dan memutar stasiun radio dari Indonesia dan negara lain langsung di browser. Data stasiun diambil dari [Radio Browser](https://www.radio-browser.info). Gratis, tanpa iklan, tanpa daftar akun, dan tanpa cookie. Jumlah kunjungan dihitung dengan Cloudflare Web Analytics.
 
 Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework, tidak ada `npm install`. Script build hanya butuh Python 3 bawaan.
 

@@ -8,6 +8,7 @@
   minify, dan sisipkan tag SEO berisi URL absolut.
 - Salin ikon dan gambar preview dari assets/, lalu tulis robots.txt dan sitemap.xml.
 - Salin THIRD_PARTY_NOTICES.md ke public/third-party-notices.txt.
+- Sisipkan script Cloudflare Web Analytics kalau CF_ANALYTICS_TOKEN diisi.
 - Tulis public/_headers berisi header keamanan dan cache.
 
 Minify memakai Python bawaan saja: komentar, indentasi, dan spasi berlebih dibuang;
@@ -36,6 +37,13 @@ SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diis
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
 JS_TAG = '<script src="app.js"></script>'
 ASSET_FILES = ["favicon.svg", "apple-touch-icon.png", "og-image.png"]
+
+# Token Cloudflare Web Analytics, dari dashboard: Analytics & Logs > Web Analytics > Add a site.
+# Token ini ikut tampil di HTML publik, jadi bukan secret. Kalau kosong, script analytics tidak
+# disisipkan dan host-nya tidak ditambahkan ke CSP.
+CF_ANALYTICS_TOKEN = "93b56a911b5f4956b159046e7cdc8931"
+CF_ANALYTICS_SCRIPT_HOST = "https://static.cloudflareinsights.com"
+CF_ANALYTICS_REPORT_HOST = "https://cloudflareinsights.com"
 
 # Host API Radio Browser yang dipanggil fetch(). Harus sama dengan API_MIRRORS di src/app.js.
 API_HOSTS = [
@@ -264,18 +272,30 @@ def seo_tags(html):
     )
 
 
+def analytics_tag():
+    beacon = json.dumps({"token": CF_ANALYTICS_TOKEN})
+    return (
+        f'<script defer src="{CF_ANALYTICS_SCRIPT_HOST}/beacon.min.js" '
+        f"data-cf-beacon='{beacon}'></script>"
+    )
+
+
 def build_csp():
+    script_hosts = [CF_ANALYTICS_SCRIPT_HOST] if CF_ANALYTICS_TOKEN else []
+    connect_hosts = API_HOSTS + ([CF_ANALYTICS_REPORT_HOST] if CF_ANALYTICS_TOKEN else [])
     directives = [
         "default-src 'none'",
         # CSS dan JS dari file di situs sendiri; tidak ada script atau style inline yang dijalankan.
         # JSON-LD adalah blok data, bukan script yang dieksekusi, jadi tidak perlu diizinkan.
-        "script-src 'self'",
+        # Script analytics Cloudflare hanya diizinkan kalau CF_ANALYTICS_TOKEN diisi.
+        " ".join(["script-src 'self'"] + script_hosts),
         "style-src 'self'",
         # Logo situs sendiri dan logo stasiun dari host mana pun; data: untuk ikon error di CSS.
         "img-src 'self' https: data:",
         # Stream audio dari server stasiun mana pun. Halaman HTTPS hanya bisa memutar https:.
         "media-src https:",
-        "connect-src " + " ".join(API_HOSTS),
+        # API Radio Browser, plus endpoint laporan analytics kalau CF_ANALYTICS_TOKEN diisi.
+        "connect-src " + " ".join(connect_hosts),
         "base-uri 'none'",
         "form-action 'none'",
         "frame-ancestors 'none'",
@@ -312,7 +332,10 @@ def main():
 
     html = html.replace(SEO_MARKER, seo_tags(html))
     html = html.replace(CSS_TAG, f'<link rel="stylesheet" href="{css_name}" />')
-    html = html.replace(JS_TAG, f'<script src="{js_name}"></script>')
+    js_tags = f'<script src="{js_name}"></script>'
+    if CF_ANALYTICS_TOKEN:
+        js_tags += "\n  " + analytics_tag()
+    html = html.replace(JS_TAG, js_tags)
 
     # Hapus hasil build lama supaya file CSS/JS dengan hash lama tidak ikut ter-upload.
     if OUTPUT_DIR.exists():
@@ -369,6 +392,10 @@ def main():
     print(f"public/{css_name}  {size(css_source)} -> {size(css)} byte")
     print(f"public/{js_name}  {size(js_source)} -> {size(js)} byte")
     print(f"public/index.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt untuk {SITE_URL}")
+    if CF_ANALYTICS_TOKEN:
+        print("Cloudflare Web Analytics: disisipkan")
+    else:
+        print("Cloudflare Web Analytics: tidak disisipkan, CF_ANALYTICS_TOKEN kosong")
 
 
 if __name__ == "__main__":
