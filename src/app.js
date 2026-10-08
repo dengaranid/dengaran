@@ -424,6 +424,16 @@ async function loadStations({ append = false } = {}) {
   requestAnimationFrame(checkLoadMoreProximity);
 }
 
+// Logo stasiun di Radio Browser kadang memakai http://. Halaman ini HTTPS dan CSP img-src hanya
+// mengizinkan https:, jadi browser tetap meminta versi https://. Mengubahnya di sini menghilangkan
+// peringatan Mixed Content di console tanpa mengubah logo mana yang tampil.
+// Nilai kosong atau bukan string menjadi "", dan stasiun ditampilkan tanpa logo.
+function httpsImageUrl(value) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed.replace(/^http:\/\//i, "https://");
+}
+
 function normalizeStation(station) {
   return {
     id: station.stationuuid,
@@ -433,7 +443,7 @@ function normalizeStation(station) {
     language: station.language || "",
     tags: station.tags || "",
     bitrate: station.bitrate || 0,
-    favicon: station.favicon || "",
+    favicon: httpsImageUrl(station.favicon),
     url: station.url_resolved || station.url
   };
 }
@@ -1381,7 +1391,10 @@ function reportClick(stationId) {
 function loadStationList(key) {
   const saved = loadJson(key, []);
   if (!Array.isArray(saved)) return [];
-  return saved.filter(station => station && station.id && !isBlockedStation(station));
+  // Favorit yang disimpan sebelum httpsImageUrl ada masih bisa berisi logo http://.
+  return saved
+    .filter(station => station && station.id && !isBlockedStation(station))
+    .map(station => ({ ...station, favicon: httpsImageUrl(station.favicon) }));
 }
 
 function loadJson(key, fallback) {
