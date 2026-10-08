@@ -182,21 +182,6 @@ kbd {
   gap: 8px;
 }
 
-.attribution {
-  margin-right: 6px;
-  color: var(--muted);
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-.attribution a {
-  color: inherit;
-}
-
-.attribution a:hover {
-  color: var(--text);
-}
-
 .hero-button {
   display: inline-flex;
   align-items: center;
@@ -1236,10 +1221,6 @@ kbd {
   .hero {
     padding: 0 16px;
     align-items: center;
-  }
-
-  .attribution {
-    display: none;
   }
 
   .brand .tagline {

@@ -7,7 +7,8 @@ const API_MIRRORS = [
   "https://at1.api.radio-browser.info/json"
 ];
 
-// Placeholder untuk dialog Tentang dan Dukung. Ganti sebelum dipublikasikan.
+// Isian dialog Tentang dan Dukung.
+// Ubah legalUpdated setiap kali isi dialog Tentang diubah.
 const SITE_INFO = {
   owner: "Dengaran",
   email: "dengaranid@gmail.com",
