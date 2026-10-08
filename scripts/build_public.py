@@ -7,6 +7,7 @@
 - Salin src/index.html ke public/index.html, ganti referensi CSS/JS ke file hasil
   minify, dan sisipkan tag SEO berisi URL absolut.
 - Salin ikon dan gambar preview dari assets/, lalu tulis robots.txt dan sitemap.xml.
+- Salin THIRD_PARTY_NOTICES.md ke public/third-party-notices.txt.
 - Tulis public/_headers berisi header keamanan dan cache.
 
 Minify memakai Python bawaan saja: komentar, indentasi, dan spasi berlebih dibuang;
@@ -328,6 +329,9 @@ def main():
             sys.exit(f"Aset tidak ditemukan: {source}")
         shutil.copyfile(source, OUTPUT_DIR / name)
 
+    # Lisensi ikon pihak ketiga wajib ikut di setiap salinan, termasuk situs yang di-deploy.
+    shutil.copyfile(ROOT / "THIRD_PARTY_NOTICES.md", OUTPUT_DIR / "third-party-notices.txt")
+
     (OUTPUT_DIR / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n", encoding="utf-8"
     )
@@ -364,7 +368,7 @@ def main():
 
     print(f"public/{css_name}  {size(css_source)} -> {size(css)} byte")
     print(f"public/{js_name}  {size(js_source)} -> {size(js)} byte")
-    print(f"public/index.html, _headers, aset, robots.txt, sitemap.xml untuk {SITE_URL}")
+    print(f"public/index.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt untuk {SITE_URL}")
 
 
 if __name__ == "__main__":

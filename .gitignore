@@ -4,8 +4,11 @@
 # Impeccable
 /.impeccable/
 
-#
+# Ceklis development
 /ceklis/
 
 # Hasil build, dibuat ulang oleh scripts/build_public.py
 /public/
+
+# State runtime oh-my-claudecode
+/.omc/
