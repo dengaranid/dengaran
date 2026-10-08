@@ -643,7 +643,7 @@ kbd {
   background:
     linear-gradient(135deg, rgba(143, 166, 185, 0.9), rgba(111, 154, 131, 0.9));
   color: var(--bg);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 1.15rem;
   user-select: none;
 }
