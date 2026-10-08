@@ -46,6 +46,10 @@
     scroll-behavior: auto !important;
   }
 
+  .toast-timer {
+    display: none;
+  }
+
   /* Loader tetap menandai proses yang berjalan: berdenyut pelan, tanpa berputar. */
   .spin {
     animation: pulse 1.6s ease-in-out infinite !important;
@@ -1170,7 +1174,8 @@ kbd {
   text-align: right;
 }
 
-/* Toast di dalam jendela, tepat di atas player. */
+/* Toast di dalam jendela, tepat di atas player. Permukaan krem dengan teks arang,
+   supaya terbaca sebagai pesan di atas daftar yang gelap, bukan baris daftar. */
 .toast {
   position: absolute;
   left: 50%;
@@ -1179,14 +1184,29 @@ kbd {
   z-index: 80;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: max-content;
   max-width: calc(100% - 32px);
-  padding: 10px 10px 10px 16px;
-  border: 1px solid var(--border);
-  background: var(--panel-soft);
+  padding: 10px 10px 10px 14px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--stop);
   box-shadow: var(--shadow);
   animation: toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Hati favorit: dusty rose terisi. Kontras 3.2:1 di atas krem. */
+.toast[data-tone="favorite"] .toast-icon {
+  color: var(--favorite);
+}
+
+.toast[data-tone="favorite"] .toast-icon .icon {
+  fill: currentColor;
 }
 
 .toast-text {
@@ -1196,14 +1216,49 @@ kbd {
   line-height: 1.4;
 }
 
+.toast-text strong {
+  font-weight: 600;
+}
+
 .toast-action {
   flex-shrink: 0;
   min-height: 36px;
   padding: 0 12px;
   border: 0;
-  color: var(--primary);
-  background: rgba(143, 166, 185, 0.15);
+  color: var(--primary-dark);
+  background: rgba(79, 102, 120, 0.14);
   font-weight: 600;
+}
+
+.toast-action:hover {
+  background: rgba(79, 102, 120, 0.24);
+}
+
+/* Outline default (biru abu muda) tidak terlihat di atas krem. */
+.toast :focus-visible {
+  outline-color: var(--primary-dark);
+}
+
+/* Sisa waktu sebelum toast hilang. Berhenti saat toast di-hover atau difokus. */
+.toast-timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(26, 29, 33, 0.3);
+  transform-origin: left;
+  animation: toast-timer var(--toast-ms, 3500ms) linear forwards;
+}
+
+.toast.is-paused .toast-timer {
+  animation-play-state: paused;
+}
+
+@keyframes toast-timer {
+  to {
+    transform: scaleX(0);
+  }
 }
 
 @keyframes toast-in {

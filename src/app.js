@@ -73,7 +73,9 @@ const ICONS = {
   volumeHigh: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>',
   volumeLow: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
   volumeOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>',
-  radio: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16v2"/><path d="M19 16v2"/><rect width="20" height="8" x="2" y="8" rx="2"/><path d="M18 12h.01"/></svg>'
+  radio: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16v2"/><path d="M19 16v2"/><rect width="20" height="8" x="2" y="8" rx="2"/><path d="M18 12h.01"/></svg>',
+  heartOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4.893a5.5 5.5 0 0 1 1.091.931.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 1.872-1.002 3.356-2.187 4.655"/><path d="m16.967 16.967-3.459 3.346a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 2.747-4.761"/><path d="m2 2 20 20"/></svg>',
+  wifiOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>'
 };
 
 const NOW_DOT_HTML = '<span class="now-dot" aria-hidden="true"></span>';
@@ -138,6 +140,7 @@ const volumeValue = document.getElementById("volumeValue");
 const volumeControl = document.getElementById("volumeControl");
 const toast = document.getElementById("toast");
 const toastText = document.getElementById("toastText");
+const toastIcon = document.getElementById("toastIcon");
 const toastAction = document.getElementById("toastAction");
 const navSearchButton = document.getElementById("navSearchButton");
 const viewButtons = Array.from(document.querySelectorAll(".mobile-nav [data-view]"));
@@ -391,6 +394,7 @@ async function loadStations({ append = false } = {}) {
   if (!Array.isArray(data)) {
     if (append) {
       showToast("Gagal memuat radio berikutnya. Periksa koneksi internet.", {
+        icon: "wifiOff",
         actionLabel: "Coba lagi",
         onAction: () => loadStations({ append: true })
       });
@@ -1111,7 +1115,9 @@ function handleAudioError() {
 function toggleMute() {
   audioPlayer.muted = !audioPlayer.muted;
   updateVolumeUI();
-  showToast(audioPlayer.muted ? "Suara dibisukan." : "Suara dinyalakan.");
+  showToast(audioPlayer.muted ? "Suara dibisukan." : "Suara dinyalakan.", {
+    icon: audioPlayer.muted ? "volumeOff" : "volumeHigh"
+  });
 }
 
 // Ikon Lucide mengikuti level: volume-x (bisu atau 0), volume-1 (di bawah 50%), volume-2.
@@ -1216,7 +1222,11 @@ function addFavorite(stationId, sourceButton) {
     if (heart) heart.focus({ preventScroll: true });
   }
 
-  showToast(`${station.name} dipindah ke Favorit di atas daftar.`);
+  showToast("dipindah ke Favorit di atas daftar.", {
+    strong: station.name,
+    icon: "heart",
+    tone: "favorite"
+  });
 }
 
 function removeFavorite(stationId, sourceButton) {
@@ -1234,13 +1244,19 @@ function removeFavorite(stationId, sourceButton) {
   // pindahkan fokus ke kartu favorit di posisi yang sama, atau ke judul hasil.
   if (visibleIndex !== -1) focusFavoriteAt(visibleIndex);
 
-  showToast(`${removedStation.name} dihapus dari favorit.`, {
+  showToast("dihapus dari favorit.", {
+    strong: removedStation.name,
+    icon: "heartOff",
     actionLabel: "Batalkan",
     onAction: () => {
       if (isFavorite(removedStation.id)) return;
       favorites.splice(Math.min(index, favorites.length), 0, removedStation);
       refreshFavoriteViews();
-      showToast(`${removedStation.name} dikembalikan ke favorit.`);
+      showToast("dikembalikan ke favorit.", {
+        strong: removedStation.name,
+        icon: "heart",
+        tone: "favorite"
+      });
     }
   });
 }
@@ -1458,8 +1474,14 @@ function announce(message) {
   resultAnnouncer.textContent = message;
 }
 
-function showToast(message, { actionLabel = "", onAction = null } = {}) {
+// strong: nama stasiun, ditebalkan di depan pesan. icon: kunci ICONS. tone: warna ikon.
+function showToast(message, { actionLabel = "", onAction = null, strong = "", icon = "", tone = "" } = {}) {
   const token = ++toastToken;
+  const iconHtml = ICONS[icon] || "";
+  toastIcon.innerHTML = iconHtml;
+  toastIcon.hidden = !iconHtml;
+  toast.dataset.tone = tone;
+  toast.classList.remove("is-paused");
   toastAction.textContent = actionLabel;
   toastAction.hidden = !actionLabel;
   toastActionHandler = onAction;
@@ -1472,10 +1494,20 @@ function showToast(message, { actionLabel = "", onAction = null } = {}) {
   void toast.offsetWidth;
   toast.hidden = false;
   setTimeout(() => {
-    if (token === toastToken) toastText.textContent = message;
+    if (token !== toastToken) return;
+    if (strong) {
+      const name = document.createElement("strong");
+      name.textContent = strong;
+      toastText.replaceChildren(name, ` ${message}`);
+    } else {
+      toastText.textContent = message;
+    }
   }, 60);
 
-  scheduleToastHide(actionLabel ? 6000 : 3500);
+  const duration = actionLabel ? 6000 : 3500;
+  // Garis waktu di bawah toast berjalan selama durasi yang sama.
+  toast.style.setProperty("--toast-ms", `${duration}ms`);
+  scheduleToastHide(duration);
 }
 
 function scheduleToastHide(ms) {
@@ -1488,6 +1520,7 @@ function scheduleToastHide(ms) {
 function pauseToast() {
   if (toast.hidden || toastPaused) return;
   toastPaused = true;
+  toast.classList.add("is-paused");
   clearTimeout(toastTimer);
   toastRemaining -= Date.now() - toastStartedAt;
 }
@@ -1497,6 +1530,7 @@ function resumeToast() {
   // Fokus atau kursor masih di dalam toast: tetap tunggu.
   if (toast.matches(":hover") || toast.contains(document.activeElement)) return;
   toastPaused = false;
+  toast.classList.remove("is-paused");
   scheduleToastHide(Math.max(toastRemaining, 1500));
 }
 
