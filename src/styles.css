@@ -733,12 +733,13 @@ kbd {
 }
 
 /* Tag yang tidak muat turun ke baris kedua, dan baris kedua itu dipotong oleh height dan
-   overflow. Hasilnya hanya tag utuh yang tampil, dan tag tidak melebar ke kolom tombol. */
+   overflow. Hasilnya hanya tag utuh yang tampil, dan tag tidak melebar ke kolom tombol.
+   height sama dengan min-height .tag (24px). Kalau lebih kecil, border bawah tag terpotong. */
 .card-sub .tags {
   flex: 0 1 auto;
   min-width: 0;
   flex-wrap: wrap;
-  height: 22px;
+  height: 24px;
   overflow: hidden;
 }
 
@@ -797,12 +798,18 @@ kbd {
   list-style: none;
 }
 
+/* Tombol tag sebagai flex item, bukan inline-block: tanpa baseline teks, tag tidak turun
+   0.4px dan border bawahnya tidak terpotong oleh height .card-sub .tags. */
+.tags li {
+  display: flex;
+}
+
 /* Tinggi 24px: batas minimum target sentuh WCAG 2.5.8.
-   Padding bawah 2px menaikkan teks 1px: tag hampir selalu huruf kecil, dan tanpa itu
-   x-height system-ui duduk 1px di bawah tengah tombol. */
+   Padding atas dan bawah 0: diukur di Chromium, rata-rata tinta teks tag (huruf kecil,
+   huruf tinggi, dan angka) tepat di tengah. Padding bawah 2px membuatnya naik 1px. */
 .tag {
   min-height: 24px;
-  padding: 0 8px 2px;
+  padding: 0 8px;
   border: 1px solid transparent;
   color: var(--text-soft);
   background: rgba(255, 255, 255, 0.07);
