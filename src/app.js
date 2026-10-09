@@ -318,11 +318,48 @@ async function init() {
   updatePlaybackUI();
   observeLayout();
   observeLoadMore();
+  selectInitialCountry();
   loadCountries();
   await startNewSearch();
 }
 
 // ---------- Negara ----------
+
+const INDONESIA_TIME_ZONES = new Set([
+  "Asia/Jakarta", "Asia/Pontianak", "Asia/Makassar", "Asia/Jayapura"
+]);
+
+// Negara awal ditebak dari browser. Zona waktu Indonesia dicek lebih dulu,
+// karena banyak pengguna di Indonesia memakai bahasa en-US di perangkatnya.
+function detectCountry() {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (INDONESIA_TIME_ZONES.has(timeZone)) return DEFAULT_COUNTRY;
+
+    const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
+    for (const language of languages) {
+      if (!language) continue;
+      // "pl" tanpa kode negara dilengkapi jadi "pl-Latn-PL" oleh maximize().
+      const region = new Intl.Locale(language).maximize().region;
+      if (region && /^[A-Z]{2}$/.test(region)) return region;
+    }
+  } catch (error) {
+    // Intl.Locale tidak tersedia atau bahasa tidak valid: pakai default.
+  }
+  return DEFAULT_COUNTRY;
+}
+
+// Select negara di HTML baru berisi Indonesia. Negara hasil tebakan ditambahkan
+// sebagai opsi sementara, supaya pencarian pertama tidak menunggu /countries.
+function selectInitialCountry() {
+  const code = detectCountry();
+  if (code === DEFAULT_COUNTRY) return;
+  const option = document.createElement("option");
+  option.value = code;
+  option.textContent = localizedCountry(code, code);
+  countrySelect.append(option);
+  countrySelect.value = code;
+}
 
 function createRegionNames() {
   try {
@@ -372,7 +409,9 @@ async function loadCountries() {
   // Pastikan default/pilihan sebelumnya tetap terpilih.
   countrySelect.value = previousValue;
   if (countrySelect.selectedIndex === -1) {
+    // Negara hasil tebakan tidak punya stasiun di API: muat ulang dengan Indonesia.
     countrySelect.value = DEFAULT_COUNTRY;
+    startNewSearch();
   }
   updateResultsTitle();
 }
