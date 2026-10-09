@@ -1264,7 +1264,7 @@ function markStreamFailed(station, error) {
 
   // Autoplay diblokir browser: stasiunnya tidak rusak, cukup tekan Putar lagi.
   if (error && error.name === "NotAllowedError") {
-    showStatus("Browser menahan audio. Tekan Putar sekali lagi.");
+    showStatus("Browser memblokir audio. Tekan Putar sekali lagi.");
     setMediaPlaybackState("paused");
     updatePlaybackUI();
     return;

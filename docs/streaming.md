@@ -171,7 +171,7 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 
 | Kondisi | Pesan untuk pengguna | Tombol Coba lagi |
 |---|---|---|
-| `NotAllowedError` | Browser menahan audio. Tekan Putar sekali lagi. Stasiun tidak ditandai gagal. | disembunyikan |
+| `NotAllowedError` | Browser memblokir audio. Tekan Putar sekali lagi. Stasiun tidak ditandai gagal. | disembunyikan |
 | `UnsupportedCodec` | Format AAC tidak didukung browser ini. | disembunyikan |
 | `ConnectionLost` | Koneksi terputus dan tidak bisa disambung ulang. | tampil |
 | `TimeoutError`, stasiun AAC | Stasiun mungkin offline, atau browser tidak bisa memutar AAC. | tampil |
