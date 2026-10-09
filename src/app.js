@@ -457,7 +457,7 @@ async function loadStations({ append = false } = {}) {
     updateResultsTitle();
     radioScroll.scrollTop = 0;
     stationList.innerHTML = `<div class="loading">Memuat daftar radio...</div>`;
-    stationCount.textContent = "Memuat...";
+    stationCount.textContent = "";
     loadMoreButton.hidden = true;
   } else {
     loadMoreButton.disabled = true;
@@ -502,7 +502,8 @@ async function loadStations({ append = false } = {}) {
         <button class="btn btn-inline" type="button" data-action="retry-list">Coba lagi</button>
       </div>
     `;
-    updateStationCount();
+    // Jumlah radio tidak diketahui saat gagal, jadi count dikosongkan, bukan (0).
+    stationCount.textContent = "";
     announce("Gagal memuat daftar radio.");
     loadMoreButton.hidden = true;
     return;
@@ -573,8 +574,10 @@ function updateResultsTitle() {
 // ---------- Render ----------
 
 function updateStationCount() {
+  // Selama daftar dimuat, count dibiarkan kosong sampai hasil baru dirender.
+  if (stationList.querySelector(".loading")) return;
   const resultTotal = stationList.querySelectorAll(".card").length;
-  stationCount.textContent = `${resultTotal} radio`;
+  stationCount.textContent = `(${resultTotal})`;
 }
 
 function renderStations() {
@@ -1476,7 +1479,7 @@ function addFavorite(stationId, sourceButton) {
 
   const resultCard = stationList.querySelector(`[data-station-id="${cssEscape(station.id)}"]`);
   if (resultCard) resultCard.remove();
-  if (!stationList.querySelector(".card")) renderStations();
+  if (!stationList.querySelector(".card, .loading")) renderStations();
   updateStationCount();
   updateFavoriteButtons();
 
