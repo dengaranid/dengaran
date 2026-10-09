@@ -37,6 +37,8 @@ SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diis
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
 JS_TAG = '<script defer src="app.js"></script>'
 ASSET_FILES = ["favicon.svg", "apple-touch-icon.png", "og-image.png"]
+# Library pihak ketiga yang dimuat app.js saat dibutuhkan. Disalin apa adanya, tanpa minify ulang.
+VENDOR_DIR = SRC_DIR / "vendor"
 
 # Token Cloudflare Web Analytics, dari dashboard: Analytics & Logs > Web Analytics > Add a site.
 # Token ini ikut tampil di HTML publik, jadi bukan secret. Kalau kosong, script analytics tidak
@@ -293,10 +295,13 @@ def build_csp():
         # Logo situs sendiri dan logo stasiun dari host mana pun; data: untuk ikon error di CSS.
         "img-src 'self' https: data:",
         # Stream audio dari server stasiun mana pun. Halaman HTTPS hanya bisa memutar https:.
-        "media-src https:",
+        # blob: untuk stream HLS yang diputar hls.js lewat Media Source Extensions.
+        "media-src https: blob:",
         # 'self' supaya Lighthouse bisa mengambil /robots.txt dari dalam halaman (audit SEO).
-        # API Radio Browser, plus endpoint laporan analytics kalau CF_ANALYTICS_TOKEN diisi.
-        " ".join(["connect-src 'self'"] + connect_hosts),
+        # https: karena hls.js mengambil playlist dan segmen HLS (lewat XHR) dari server stasiun
+        # mana pun. Pembatasan per host sengaja dilepas untuk itu: API Radio Browser dan endpoint
+        # analytics tetap ditulis hanya sebagai daftar host yang dipanggil app.js.
+        " ".join(["connect-src 'self' https:"] + connect_hosts),
         "base-uri 'none'",
         "form-action 'none'",
         "frame-ancestors 'none'",
@@ -353,6 +358,9 @@ def main():
             sys.exit(f"Aset tidak ditemukan: {source}")
         shutil.copyfile(source, OUTPUT_DIR / name)
 
+    if VENDOR_DIR.exists():
+        shutil.copytree(VENDOR_DIR, OUTPUT_DIR / "vendor")
+
     # Lisensi ikon pihak ketiga wajib ikut di setiap salinan, termasuk situs yang di-deploy.
     shutil.copyfile(ROOT / "THIRD_PARTY_NOTICES.md", OUTPUT_DIR / "third-party-notices.txt")
 
@@ -377,6 +385,7 @@ def main():
             "  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()",
             "",
             # Nama file berisi hash isi, jadi aman di-cache lama: isi baru selalu nama baru.
+            # Termasuk vendor/*.min.js: versi library ditulis di nama filenya.
             "/*.min.js",
             "  Cache-Control: public, max-age=31536000, immutable",
             "",

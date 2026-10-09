@@ -41,6 +41,31 @@ const HISTORY_LIMIT = 8;
 // Batas tunggu sampai stream mulai berbunyi, dan batas buffering saat sedang memutar.
 const CONNECT_TIMEOUT_MS = 12000;
 const STALL_TIMEOUT_MS = 15000;
+// Jeda sebelum tiap percobaan menyambung ulang stream yang putus saat sedang diputar.
+// Sesudah percobaan terakhir gagal, stream dinyatakan gagal seperti biasa.
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+// Jumlah percobaan baru dikembalikan ke 0 sesudah stream hasil sambung ulang berbunyi selama ini.
+// Tanpa batas ini, server yang memutus koneksi tiap beberapa detik disambung ulang tanpa henti.
+const RECONNECT_RESET_SECONDS = 10;
+// hls.js hanya dimuat saat stasiun HLS diputar di browser yang tidak memutar HLS sendiri.
+// Versi ditulis di nama file supaya aturan cache immutable untuk *.min.js tetap aman.
+const HLS_SCRIPT = "vendor/hls-1.7.3.light.min.js";
+const HLS_CONFIG = {
+  // Worker hls.js dibuat dari blob: URL dan diblokir CSP. Transmux stream audio di main thread
+  // ringan, jadi worker tidak dipakai.
+  enableWorker: false,
+  // Mulai 3 segmen di belakang ujung playlist live, batas minimum yang diizinkan spesifikasi HLS.
+  liveSyncDurationCount: 3,
+  // Tertinggal 3 sampai 6 segmen: putar sedikit lebih cepat (maksimal 1.05x) sampai kembali ke
+  // posisi live. Pitch tidak berubah karena preservesPitch elemen audio aktif secara default.
+  maxLiveSyncPlaybackRate: 1.05,
+  // Tertinggal lebih dari 6 segmen: seek langsung ke posisi live.
+  liveMaxLatencyDurationCount: 6,
+  // Batasi buffer di depan dan di belakang posisi putar supaya kuota dan memori tidak terpakai
+  // untuk audio yang tidak akan didengar. Pemilihan bitrate (ABR) memakai default hls.js.
+  maxBufferLength: 10,
+  backBufferLength: 10
+};
 const FAVORITE_KEY = "radio_online_favorites_v1";
 const LAST_STATION_KEY = "radio_online_last_station_v1";
 const HISTORY_KEY = "radio_online_history_v1";
@@ -165,6 +190,23 @@ let searchAbortController = null;
 let playRequestId = 0;
 let connectTimer = null;
 let stallTimer = null;
+// True selama elemen audio memutar stream milik currentStation. Event pause dan error yang
+// dikirim sesudah stream dilepas diabaikan berdasarkan nilai ini.
+let streamAttached = false;
+// Instance hls.js untuk stream yang sedang dipasang, dan promise pemuatan script-nya.
+let hls = null;
+let hlsLoader = null;
+// Lama mendengar stream yang sedang dipasang. Dihitung dari kenaikan currentTime, bukan dari
+// nilainya, karena stream HLS live tidak mulai dari 0 dan hls.js bisa melakukan seek ke posisi live.
+// listenSeconds tidak direset saat sambung ulang; streamSeconds direset tiap stream dipasang.
+let listenSeconds = 0;
+let streamSeconds = 0;
+let lastMediaTime = null;
+// Jumlah percobaan sambung ulang yang sudah dijalankan. 0 berarti tidak sedang menyambung ulang.
+let reconnectAttempt = 0;
+let reconnectTimer = null;
+// True saat percobaan berikutnya ditahan sampai browser melaporkan jaringan tersambung.
+let waitingForNetwork = false;
 const failedStations = new Set();
 let toastTimer = null;
 let toastToken = 0;
@@ -203,6 +245,8 @@ audioPlayer.addEventListener("waiting", handleAudioWaiting);
 audioPlayer.addEventListener("stalled", handleAudioWaiting);
 audioPlayer.addEventListener("timeupdate", handleAudioTimeUpdate);
 audioPlayer.addEventListener("error", handleAudioError);
+audioPlayer.addEventListener("ended", handleAudioEnded);
+window.addEventListener("online", handleOnline);
 
 miniPlayButton.addEventListener("click", handleMiniPlayButton);
 closePlayerButton.addEventListener("click", closePlayer);
@@ -460,6 +504,7 @@ function normalizeStation(station) {
     language: station.language || "",
     tags: station.tags || "",
     bitrate: station.bitrate || 0,
+    hls: station.hls === 1,
     favicon: httpsImageUrl(station.favicon),
     url: station.url_resolved || station.url
   };
@@ -926,8 +971,10 @@ async function togglePlay(stationId) {
   await playStation(station);
 }
 
-async function playStation(station) {
+async function playStation(station, { reconnect = false } = {}) {
   clearStreamTimers();
+  // Pemutaran yang dimulai pengguna membatalkan sambung ulang yang sedang berjalan.
+  if (!reconnect) cancelReconnect();
   const requestId = ++playRequestId;
 
   currentStation = station;
@@ -936,22 +983,28 @@ async function playStation(station) {
   isBuffering = false;
   failedStations.delete(station.id);
 
-  // Mengganti src otomatis menghentikan stream sebelumnya.
-  audioPlayer.src = station.url;
-  audioPlayer.load();
-
   setPlayerStation(station);
   retryButton.hidden = true;
-  showStatus("Menghubungkan ke stream...");
+  showStatus(
+    reconnect
+      ? `Menyambung ulang ke stream (percobaan ${reconnectAttempt} dari ${RECONNECT_DELAYS_MS.length})...`
+      : "Menghubungkan ke stream..."
+  );
   updatePlaybackUI();
 
-  saveJson(LAST_STATION_KEY, station);
-  reportClick(station.id);
+  // Sambung ulang bukan klik baru: jumlah klik di Radio Browser tidak ditambah lagi.
+  if (!reconnect) {
+    listenSeconds = 0;
+    saveJson(LAST_STATION_KEY, station);
+    reportClick(station.id);
+  }
 
   // Stream yang menggantung tidak memicu event error: batasi waktunya.
   connectTimer = failAfter(CONNECT_TIMEOUT_MS, station, requestId);
 
   try {
+    await attachStream(station, requestId);
+    if (requestId !== playRequestId) return;
     await audioPlayer.play();
   } catch (error) {
     // Permintaan ini sudah diganti stasiun lain, dihentikan, atau habis waktu:
@@ -967,7 +1020,7 @@ async function playStation(station) {
       return;
     }
 
-    markStreamFailed(station, error);
+    handleStreamFailure(station, error);
     return;
   }
 
@@ -982,11 +1035,86 @@ async function playStation(station) {
   updatePlaybackUI();
 }
 
+// Radio Browser menandai stasiun HLS dengan hls = 1. Favorit yang disimpan sebelum field itu
+// ada dikenali dari URL .m3u8.
+function isHlsStation(station) {
+  return station.hls === true || /\.m3u8(\?|$)/i.test(station.url);
+}
+
+// Pasang stream ke elemen audio. Mengganti stream otomatis menghentikan yang sebelumnya.
+// HLS diputar lewat hls.js (Media Source Extensions) kalau browser tidak memutarnya sendiri,
+// misalnya Firefox. Safari dan stream Icecast/MP3 biasa langsung lewat elemen audio.
+async function attachStream(station, requestId) {
+  detachStream();
+  streamSeconds = 0;
+  lastMediaTime = null;
+
+  if (isHlsStation(station) && !audioPlayer.canPlayType("application/vnd.apple.mpegurl")) {
+    // Stream sebelumnya dihentikan sekarang. Kalau tidak, ia tetap terdengar selama hls.js diunduh.
+    audioPlayer.pause();
+    audioPlayer.removeAttribute("src");
+    audioPlayer.load();
+
+    const Hls = await loadHls();
+    if (requestId !== playRequestId) return;
+    if (!Hls.isSupported()) throw new Error("Browser tidak mendukung Media Source Extensions");
+
+    const instance = new Hls(HLS_CONFIG);
+    hls = instance;
+    // Error yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal diperlakukan sama
+    // dengan event error elemen audio.
+    instance.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal && requestId === playRequestId) handleStreamFailure(station);
+    });
+    instance.loadSource(station.url);
+    instance.attachMedia(audioPlayer);
+    // Error fatal yang dikirim sinkron di atas sudah melepas stream ini.
+    if (requestId !== playRequestId) return;
+  } else {
+    audioPlayer.src = station.url;
+    audioPlayer.load();
+  }
+  streamAttached = true;
+}
+
+function detachStream() {
+  streamAttached = false;
+  if (hls) {
+    hls.destroy();
+    hls = null;
+  }
+}
+
+// Script dimuat sekali dan dipakai ulang. Kalau gagal dimuat, percobaan berikutnya memuat ulang.
+function loadHls() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  if (!hlsLoader) {
+    hlsLoader = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = HLS_SCRIPT;
+      script.onload = () => {
+        if (window.Hls) {
+          resolve(window.Hls);
+          return;
+        }
+        hlsLoader = null;
+        reject(new Error("hls.js tidak terpasang sesudah dimuat"));
+      };
+      script.onerror = () => {
+        script.remove();
+        hlsLoader = null;
+        reject(new Error("hls.js gagal dimuat"));
+      };
+      document.head.append(script);
+    });
+  }
+  return hlsLoader;
+}
+
 function failAfter(ms, station, requestId) {
   return setTimeout(() => {
     if (requestId !== playRequestId) return;
-    abortStream();
-    markStreamFailed(station, { name: "TimeoutError" });
+    handleStreamFailure(station, { name: "TimeoutError" });
   }, ms);
 }
 
@@ -998,17 +1126,71 @@ function clearStreamTimers() {
 }
 
 // Lepas stream dari elemen audio. Event pause dan error yang menyusul diabaikan
-// karena src sudah kosong, dan promise play() yang tertunda jadi permintaan lama.
+// karena streamAttached sudah false, dan promise play() yang tertunda jadi permintaan lama.
 function abortStream() {
   playRequestId++;
   clearStreamTimers();
+  detachStream();
   audioPlayer.pause();
   audioPlayer.removeAttribute("src");
   audioPlayer.load();
 }
 
+// Stream yang sudah berbunyi lalu putus disambung ulang dengan jeda yang makin panjang.
+// Stream yang belum pernah berbunyi berarti stasiun offline atau URL rusak, jadi langsung gagal.
+function handleStreamFailure(station, error) {
+  const wasStreaming = isPlaying || reconnectAttempt > 0;
+  const blocked = error && error.name === "NotAllowedError";
+  abortStream();
+
+  if (wasStreaming && !blocked && reconnectAttempt < RECONNECT_DELAYS_MS.length) {
+    scheduleReconnect(station);
+    return;
+  }
+
+  const lostAfterRetry = reconnectAttempt > 0 && !blocked;
+  cancelReconnect();
+  markStreamFailed(station, lostAfterRetry ? { name: "ConnectionLost" } : error);
+}
+
+function scheduleReconnect(station) {
+  const delay = RECONNECT_DELAYS_MS[reconnectAttempt];
+  isPlaying = false;
+  isBuffering = false;
+  isConnecting = true;
+  showStatus(`Koneksi terputus. Menyambung ulang dalam ${delay / 1000} detik...`);
+  updatePlaybackUI();
+  reconnectTimer = setTimeout(() => runReconnect(station), delay);
+}
+
+// Tanpa jaringan percobaan pasti gagal. Jumlah percobaan tidak bertambah sampai event online dikirim.
+function runReconnect(station) {
+  reconnectTimer = null;
+  if (!navigator.onLine) {
+    waitingForNetwork = true;
+    showStatus("Koneksi terputus. Menunggu jaringan tersambung lagi...");
+    return;
+  }
+  reconnectAttempt += 1;
+  playStation(station, { reconnect: true });
+}
+
+function handleOnline() {
+  if (!waitingForNetwork || !currentStation) return;
+  waitingForNetwork = false;
+  runReconnect(currentStation);
+}
+
+function cancelReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  reconnectAttempt = 0;
+  waitingForNetwork = false;
+}
+
 function stopPlayback(message) {
   abortStream();
+  cancelReconnect();
   isConnecting = false;
   isPlaying = false;
   isBuffering = false;
@@ -1020,6 +1202,7 @@ function stopPlayback(message) {
 
 function closePlayer() {
   abortStream();
+  cancelReconnect();
   currentStation = null;
   isPlaying = false;
   isConnecting = false;
@@ -1041,6 +1224,7 @@ function markStreamFailed(station, error) {
   // Autoplay diblokir browser: stasiunnya tidak rusak, cukup tekan Putar lagi.
   if (error && error.name === "NotAllowedError") {
     showStatus("Browser menahan audio. Tekan Putar sekali lagi.");
+    setMediaPlaybackState("paused");
     updatePlaybackUI();
     return;
   }
@@ -1048,11 +1232,13 @@ function markStreamFailed(station, error) {
   failedStations.add(station.id);
   retryButton.hidden = false;
   showStatus(
-    error && error.name === "TimeoutError"
-      ? `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`
-      : isInsecureStream(station)
-        ? `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`
-        : `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`,
+    error && error.name === "ConnectionLost"
+      ? `Koneksi ke ${station.name} terputus dan tidak bisa disambung ulang. Coba lagi atau pilih stasiun lain.`
+      : error && error.name === "TimeoutError"
+        ? `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`
+        : isInsecureStream(station)
+          ? `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`
+          : `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`,
     true
   );
   setMediaPlaybackState("none");
@@ -1065,8 +1251,10 @@ function handleMiniPlayButton() {
 }
 
 function handleAudioPause() {
-  // Tanpa src berarti stop, batal, atau gagal: pesannya sudah ditulis di sana.
-  if (!audioPlayer.getAttribute("src")) return;
+  // Stream sudah dilepas berarti stop, batal, gagal, atau sambung ulang: pesannya sudah ditulis di sana.
+  if (!streamAttached) return;
+  // Server menutup koneksi: event ended menyusul dan ditangani handleAudioEnded.
+  if (audioPlayer.ended) return;
 
   // Jeda dari luar halaman (tombol headset, lepas Bluetooth) diperlakukan sebagai Stop.
   if (currentStation && isPlaying) stopPlayback("Dihentikan.");
@@ -1089,11 +1277,23 @@ function handleAudioTimeUpdate() {
   if (isBuffering && !audioPlayer.paused && audioPlayer.currentTime > bufferingStartTime) {
     handleAudioPlaying();
   }
-  if (isPlaying && !isBuffering) listenTime.textContent = formatTime(audioPlayer.currentTime);
+  if (!isPlaying || isBuffering) return;
+
+  // timeupdate dikirim beberapa kali per detik. Selisih di atas 2 detik berarti seek,
+  // bukan waktu yang didengar.
+  const now = audioPlayer.currentTime;
+  const delta = lastMediaTime === null ? 0 : now - lastMediaTime;
+  if (delta > 0 && delta < 2) {
+    listenSeconds += delta;
+    streamSeconds += delta;
+  }
+  lastMediaTime = now;
+  if (reconnectAttempt > 0 && streamSeconds >= RECONNECT_RESET_SECONDS) reconnectAttempt = 0;
+  listenTime.textContent = formatTime(listenSeconds);
 }
 
 function handleAudioPlaying() {
-  if (!currentStation) return;
+  if (!currentStation || !streamAttached) return;
 
   clearStreamTimers();
   isConnecting = false;
@@ -1106,8 +1306,14 @@ function handleAudioPlaying() {
 }
 
 function handleAudioError() {
-  if (!currentStation || !audioPlayer.getAttribute("src")) return;
-  markStreamFailed(currentStation);
+  if (!currentStation || !streamAttached) return;
+  handleStreamFailure(currentStation);
+}
+
+// Stream live tidak punya akhir. ended berarti server menutup koneksi, misalnya saat restart.
+function handleAudioEnded() {
+  if (!currentStation || !streamAttached) return;
+  handleStreamFailure(currentStation);
 }
 
 // ---------- Volume ----------
