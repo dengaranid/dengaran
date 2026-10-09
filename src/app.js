@@ -14,7 +14,7 @@ const SITE_INFO = {
   email: "dengaranid@gmail.com",
   supportPlatform: "Saweria",
   supportUrl: "https://saweria.co/dengaranid",
-  legalUpdated: "8 Oktober 2026"
+  legalUpdated: "9 Oktober 2026"
 };
 
 // Stasiun yang disembunyikan atas permintaan pemilik stasiun atau pemegang hak cipta.
