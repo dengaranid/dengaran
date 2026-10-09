@@ -1016,8 +1016,11 @@ async function playStation(station, { reconnect = false } = {}) {
 
   // Browser tanpa decoder AAC (misalnya ABP browser Android) tidak mengirim event error:
   // stream tersambung lalu menggantung sampai CONNECT_TIMEOUT_MS. Kalau browser sudah
-  // menyatakan tidak bisa memutar AAC, gagal seketika.
-  if (isAacStation(station) && !canPlayAac()) {
+  // menyatakan tidak bisa memutar AAC, gagal seketika. HLS dilewati karena diputar hls.js
+  // lewat Media Source Extensions, yang dukungan formatnya tidak diukur canPlayType.
+  if (isAacStation(station) && !isHlsStation(station) && !canPlayAac()) {
+    // Stream stasiun sebelumnya dihentikan supaya tidak tetap berbunyi di belakang pesan gagal.
+    abortStream();
     markStreamFailed(station, { name: "UnsupportedCodec" });
     return;
   }
@@ -1292,9 +1295,10 @@ function streamFailureMessage(station, error) {
     return `Koneksi ke ${station.name} terputus dan tidak bisa disambung ulang. Coba lagi atau pilih stasiun lain.`;
   }
   // Sebagian browser menyatakan bisa memutar AAC padahal tidak, lalu stream menggantung
-  // sampai batas waktu. Pesan ini menyebut kemungkinan itu tanpa memastikannya.
+  // sampai batas waktu. Penyebabnya tidak bisa dibedakan dari stasiun offline, jadi
+  // pesan ini menyebut keduanya.
   if (name === "TimeoutError" && isAacStation(station)) {
-    return "Tidak merespons. Format AAC stasiun ini tidak didukung sebagian browser. Coba lagi atau buka di browser lain.";
+    return "Tidak merespons. Stasiun mungkin offline, atau browser ini tidak bisa memutar format AAC. Coba lagi atau buka di browser lain.";
   }
   if (name === "TimeoutError") {
     return `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`;
