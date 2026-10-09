@@ -510,6 +510,7 @@ function normalizeStation(station) {
     language: station.language || "",
     tags: station.tags || "",
     bitrate: station.bitrate || 0,
+    codec: station.codec || "",
     hls: station.hls === 1,
     favicon: httpsImageUrl(station.favicon),
     url: station.url_resolved || station.url
@@ -1013,6 +1014,14 @@ async function playStation(station, { reconnect = false } = {}) {
   );
   updatePlaybackUI();
 
+  // Browser tanpa decoder AAC (misalnya ABP browser Android) tidak mengirim event error:
+  // stream tersambung lalu menggantung sampai CONNECT_TIMEOUT_MS. Kalau browser sudah
+  // menyatakan tidak bisa memutar AAC, gagal seketika.
+  if (isAacStation(station) && !canPlayAac()) {
+    markStreamFailed(station, { name: "UnsupportedCodec" });
+    return;
+  }
+
   // Sambung ulang bukan klik baru: jumlah klik di Radio Browser tidak ditambah lagi.
   if (!reconnect) {
     listenSeconds = 0;
@@ -1054,6 +1063,19 @@ async function playStation(station, { reconnect = false } = {}) {
   setMediaSession(station);
   addToHistory(station);
   updatePlaybackUI();
+}
+
+// Radio Browser menulis codec "AAC" atau "AAC+". Favorit yang disimpan sebelum field codec
+// ada berisi codec kosong, jadi tidak dikenali sebagai AAC.
+function isAacStation(station) {
+  return /^AAC/i.test(station.codec || "");
+}
+
+// canPlayType mengembalikan "" kalau browser yakin tidak bisa memutar formatnya.
+// Dua bentuk dicek karena browser berbeda mengenali MIME type yang berbeda.
+function canPlayAac() {
+  return audioPlayer.canPlayType("audio/aac") !== "" ||
+    audioPlayer.canPlayType('audio/mp4; codecs="mp4a.40.2"') !== "";
 }
 
 // Radio Browser menandai stasiun HLS dengan hls = 1. Favorit yang disimpan sebelum field itu
@@ -1251,19 +1273,36 @@ function markStreamFailed(station, error) {
   }
 
   failedStations.add(station.id);
-  retryButton.hidden = false;
-  showStatus(
-    error && error.name === "ConnectionLost"
-      ? `Koneksi ke ${station.name} terputus dan tidak bisa disambung ulang. Coba lagi atau pilih stasiun lain.`
-      : error && error.name === "TimeoutError"
-        ? `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`
-        : isInsecureStream(station)
-          ? `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`
-          : `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`,
-    true
-  );
+  const unsupported = Boolean(error && error.name === "UnsupportedCodec");
+  // Format yang tidak didukung tidak berubah dengan mencoba lagi.
+  retryButton.hidden = unsupported;
+  showStatus(streamFailureMessage(station, error), true);
   setMediaPlaybackState("none");
   updatePlaybackUI();
+}
+
+function streamFailureMessage(station, error) {
+  const name = error ? error.name : "";
+  // Dua pesan AAC dimulai dengan faktanya, bukan nama stasiun: di HP status terpotong
+  // satu baris, dan nama stasiun sudah tampil di atasnya.
+  if (name === "UnsupportedCodec") {
+    return "Format AAC tidak didukung browser ini. Coba buka Dengaran di browser lain, misalnya Chrome.";
+  }
+  if (name === "ConnectionLost") {
+    return `Koneksi ke ${station.name} terputus dan tidak bisa disambung ulang. Coba lagi atau pilih stasiun lain.`;
+  }
+  // Sebagian browser menyatakan bisa memutar AAC padahal tidak, lalu stream menggantung
+  // sampai batas waktu. Pesan ini menyebut kemungkinan itu tanpa memastikannya.
+  if (name === "TimeoutError" && isAacStation(station)) {
+    return "Tidak merespons. Format AAC stasiun ini tidak didukung sebagian browser. Coba lagi atau buka di browser lain.";
+  }
+  if (name === "TimeoutError") {
+    return `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`;
+  }
+  if (isInsecureStream(station)) {
+    return `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`;
+  }
+  return `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`;
 }
 
 function handleMiniPlayButton() {
