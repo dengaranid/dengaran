@@ -135,6 +135,7 @@ const radioScroll = document.getElementById("radioScroll");
 const favoriteGroup = document.getElementById("favoriteGroup");
 const favoriteList = document.getElementById("favoriteList");
 const favoriteCount = document.getElementById("favoriteCount");
+const favoriteToggle = document.getElementById("favoriteToggle");
 const resultsTitle = document.getElementById("resultsTitle");
 const resultsTitleText = document.getElementById("resultsTitleText");
 const stationList = document.getElementById("stationList");
@@ -174,6 +175,9 @@ const regionNames = createRegionNames();
 
 let stations = [];
 let favorites = loadStationList(FAVORITE_KEY);
+// Grup Favorit tertutup secara default dan terbuka saat ada kata pencarian atau genre.
+let favoritesExpanded = false;
+let favoriteFilterKey = "";
 let history = loadStationList(HISTORY_KEY).slice(0, HISTORY_LIMIT);
 let currentStation = null;
 let isPlaying = false;
@@ -284,6 +288,8 @@ toast.addEventListener("focusout", resumeToast);
 [favoriteList, stationList, historyList].forEach(list => {
   list.addEventListener("click", handleCardAction);
 });
+
+favoriteToggle.addEventListener("click", () => setFavoritesExpanded(!favoritesExpanded));
 
 // Fallback logo: sembunyikan gambar rusak, tampilkan inisial di belakangnya.
 [favoriteList, stationList, historyList, playerArt].forEach(element => {
@@ -575,7 +581,21 @@ function renderStations() {
   loadMoreButton.hidden = !hasMore;
 }
 
+function setFavoritesExpanded(expanded) {
+  favoritesExpanded = expanded;
+  favoriteToggle.setAttribute("aria-expanded", String(expanded));
+  favoriteList.hidden = !expanded;
+}
+
 function renderFavorites() {
+  // Status buka/tutup hanya disetel ulang saat kata pencarian atau genre berubah,
+  // jadi ganti negara, urutan, atau tambah favorit tidak menutup grup yang dibuka user.
+  const filterKey = `${searchInput.value.trim().toLowerCase()}\n${activeTag || ""}`;
+  if (filterKey !== favoriteFilterKey) {
+    favoriteFilterKey = filterKey;
+    setFavoritesExpanded(filterKey !== "\n");
+  }
+
   const list = visibleFavorites();
   favoriteGroup.hidden = list.length === 0;
   favoriteCount.textContent = `(${list.length})`;
@@ -928,7 +948,8 @@ function handleShortcut(event) {
 
 // Urutan sama dengan yang terlihat di Daftar Radio: favorit dulu, lalu hasil.
 function playAdjacent(step) {
-  const cards = Array.from(radioScroll.querySelectorAll(".card[data-station-id]"));
+  // Kartu di grup Favorit yang tertutup dilewati.
+  const cards = Array.from(radioScroll.querySelectorAll(".list:not([hidden]) .card[data-station-id]"));
   const list = cards.map(card => findStationById(card.dataset.stationId)).filter(Boolean);
   if (list.length === 0) return;
 
@@ -1413,6 +1434,8 @@ function addFavorite(stationId, sourceButton) {
   favorites.unshift(station);
   saveJson(FAVORITE_KEY, favorites);
   renderFavorites();
+  // Kartu dipindah ke grup Favorit, jadi grup dibuka supaya kartu dan fokusnya terlihat.
+  setFavoritesExpanded(true);
 
   const resultCard = stationList.querySelector(`[data-station-id="${cssEscape(station.id)}"]`);
   if (resultCard) resultCard.remove();

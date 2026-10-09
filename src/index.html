@@ -105,11 +105,14 @@
 
           <div id="radioScroll" class="panel-scroll" tabindex="-1">
             <div id="favoriteGroup" class="group" hidden>
-              <h3 class="group-title">
-                <span>Favorit</span>
-                <span id="favoriteCount"></span>
+              <h3 class="group-title group-title-toggle">
+                <button id="favoriteToggle" class="group-toggle" type="button" aria-expanded="false" aria-controls="favoriteList">
+                  <span>Favorit</span>
+                  <span id="favoriteCount"></span>
+                  <svg class="group-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
               </h3>
-              <div id="favoriteList" class="list"></div>
+              <div id="favoriteList" class="list" hidden></div>
             </div>
 
             <div class="group">

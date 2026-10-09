@@ -586,8 +586,52 @@ kbd {
   outline: none;
 }
 
+/* Judul Favorit berisi tombol buka/tutup yang mengisi seluruh baris judul. */
+.group-title-toggle {
+  padding: 0;
+}
+
+.group-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 8px 18px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.group-toggle:hover {
+  color: var(--text);
+}
+
+.group-toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.group-toggle-icon {
+  flex: none;
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.15s ease;
+}
+
+.group-toggle[aria-expanded="true"] .group-toggle-icon {
+  transform: rotate(180deg);
+}
+
 .group + .group .group-title {
   border-top: 1px solid var(--border);
+}
+
+/* Grup tertutup: garis atas judul grup berikutnya sudah jadi pemisah. */
+.group:has(> .list[hidden]) .group-title {
+  border-bottom: 0;
 }
 
 .list {
