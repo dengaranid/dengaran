@@ -26,7 +26,7 @@
   --border: rgba(255, 255, 255, 0.1);
   --shadow: 0 22px 48px rgba(0, 0, 0, 0.32);
   --side-width: 350px;
-  --mobile-nav-height: 64px;
+  --mobile-nav-height: 58px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Diperbarui oleh ResizeObserver; nilai ini hanya fallback. */
   --player-h: 78px;
@@ -1450,9 +1450,9 @@ kbd {
   .mobile-nav {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px;
     height: var(--mobile-nav-height);
-    padding: 8px 12px 10px;
+    padding: 10px 12px;
     border-top: 1px solid var(--border);
     background: rgba(20, 23, 26, 0.96);
   }
@@ -1462,12 +1462,18 @@ kbd {
     justify-content: center;
     align-items: center;
     gap: 6px;
-    min-height: 44px;
+    min-height: 38px;
     border: 0;
     color: var(--text);
     background: rgba(37, 41, 46, 0.9);
+    font-size: 0.9rem;
     font-weight: 600;
     transition: background 0.2s ease;
+  }
+
+  .mobile-nav .icon {
+    width: 16px;
+    height: 16px;
   }
 
   .mobile-nav button[aria-pressed="true"] {
