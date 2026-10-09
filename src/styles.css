@@ -245,14 +245,69 @@ kbd {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 12px 12px 20px;
+  padding: 10px 12px 10px 20px;
   border-bottom: 1px solid var(--border);
+}
+
+.dialog-header .icon-btn {
+  width: 36px;
+  height: 36px;
 }
 
 .dialog-header h2 {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
+}
+
+#supportDialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.dialog-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(20, 23, 26, 0.5);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dialog-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dialog-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dialog-tab:hover {
+  color: var(--text);
+}
+
+.dialog-tab[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.dialog-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .dialog-body {
@@ -262,6 +317,35 @@ kbd {
   color: var(--text-soft);
   font-size: 0.92rem;
   line-height: 1.65;
+}
+
+.dialog-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0 6px;
+}
+
+.dialog-panel[hidden] {
+  display: none;
+}
+
+.dialog-section h3 {
+  margin: 14px 0 4px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dialog-section:first-child h3 {
+  margin-top: 0;
+}
+
+.dialog-section p {
+  margin: 0;
+}
+
+.dialog-section p + p {
+  margin-top: 8px;
 }
 
 .dialog-body h3 {
@@ -285,25 +369,36 @@ kbd {
 }
 
 .dialog-note {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.82rem;
 }
 
 .dialog-body p.support-intro {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .support-cta {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  margin: 6px 0 12px;
-  padding: 0 16px;
+  gap: 6px;
+  min-height: 36px;
+  margin: 6px 0 10px;
+  padding: 0 14px;
   color: var(--on-accent);
   background: var(--play);
+  font-size: 0.88rem;
   font-weight: 600;
   text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.support-cta .icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .dialog-body a.support-cta {
@@ -312,6 +407,11 @@ kbd {
 
 .support-cta:hover {
   background: var(--play-hover);
+}
+
+#supportDialog .dialog-note {
+  margin-top: 22px;
+  padding-top: 14px;
 }
 
 .brand h1 {
@@ -1444,7 +1544,7 @@ kbd {
     display: none;
   }
 
-  /* Dialog layar penuh di HP. */
+  /* Dialog Tentang layar penuh di HP; dialog Dukung tetap modal tengah kompak. */
   .dialog {
     width: 100vw;
     max-width: 100vw;
@@ -1452,6 +1552,31 @@ kbd {
     max-height: 100dvh;
     margin: 0;
     border: 0;
+  }
+
+  #supportDialog {
+    width: calc(100vw - 32px);
+    max-width: 440px;
+    height: fit-content;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    border: 1px solid var(--border);
+  }
+
+  .dialog-header {
+    padding: 10px 12px 10px 16px;
+  }
+
+  .dialog-tabs {
+    padding: 0 8px;
+  }
+
+  .dialog-tab {
+    padding: 8px 8px;
+  }
+
+  .dialog-body {
+    padding: 4px 16px 20px;
   }
 
   .window {

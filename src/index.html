@@ -246,6 +246,7 @@
         semua fitur tetap gratis untuk siapa pun.
       </p>
       <a id="supportLink" class="support-cta" href="#" target="_blank" rel="noopener">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
         <span>Traktir kopi di <span data-fill="platform"></span></span>
         <span class="visually-hidden">(membuka tab baru)</span>
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
@@ -265,84 +266,139 @@
       </button>
     </div>
 
+    <div class="dialog-tabs" role="tablist" aria-label="Kategori informasi Tentang Dengaran">
+      <button
+        id="legalTabAbout"
+        class="dialog-tab"
+        role="tab"
+        type="button"
+        aria-selected="true"
+        aria-controls="legalPanelAbout"
+        tabindex="0"
+      >Tentang</button>
+      <button
+        id="legalTabPrivacy"
+        class="dialog-tab"
+        role="tab"
+        type="button"
+        aria-selected="false"
+        aria-controls="legalPanelPrivacy"
+        tabindex="-1"
+      >Privasi</button>
+      <button
+        id="legalTabTerms"
+        class="dialog-tab"
+        role="tab"
+        type="button"
+        aria-selected="false"
+        aria-controls="legalPanelTerms"
+        tabindex="-1"
+      >Ketentuan</button>
+    </div>
+
     <div class="dialog-body">
-      <h3>Apa itu Dengaran</h3>
-      <p>
-        Dengaran memutar radio online dari Indonesia dan negara lain langsung di browser.
-        Stasiun bisa dicari per nama, negara, dan genre. Gratis, tanpa iklan, tanpa cookie, dan
-        tanpa daftar akun.
-      </p>
+      <section id="legalPanelAbout" class="dialog-panel" role="tabpanel" aria-labelledby="legalTabAbout">
+        <div class="dialog-section">
+          <h3>Apa itu Dengaran</h3>
+          <p>
+            Dengaran memutar radio online dari Indonesia dan berbagai negara langsung di browser.
+            Stasiun dapat dicari berdasarkan nama, negara, dan genre. Gratis, tanpa iklan,
+            tanpa cookie, dan tanpa daftar akun.
+          </p>
+        </div>
 
-      <h3>Sumber data</h3>
-      <p>
-        Nama stasiun, negara, bahasa, dan tag diambil dari
-        <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
-        basis data stasiun radio yang gratis, open source, dan diisi oleh komunitas. Radio Browser
-        mengizinkan datanya dipakai bebas, tanpa jaminan layanan
-        (<a href="https://api.radio-browser.info" target="_blank" rel="noopener">dokumentasi API</a>).
-        Kalau data sebuah stasiun salah, laporkan langsung ke Radio Browser.
-      </p>
+        <div class="dialog-section">
+          <h3>Sumber data &amp; komunitas</h3>
+          <p>
+            Nama stasiun, negara, bahasa, dan tag diambil dari
+            <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
+            basis data stasiun radio terbuka yang gratis dan dikelola oleh komunitas.
+            Radio Browser mengizinkan datanya digunakan bebas tanpa jaminan layanan
+            (<a href="https://api.radio-browser.info" target="_blank" rel="noopener">dokumentasi API</a>).
+            Jika data sebuah stasiun keliru, laporkan langsung ke Radio Browser.
+          </p>
+        </div>
 
-      <h3>Hak cipta dan merek</h3>
-      <p>
-        Siaran dan nama stasiun adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
-        dengan stasiun mana pun. Dengaran tidak menyimpan, merekam, atau menyiarkan ulang audio.
-        Browser Anda mengambil siaran langsung dari server milik stasiun.
-      </p>
+        <div class="dialog-section">
+          <h3>Pemutaran siaran</h3>
+          <p>
+            Dengaran tidak menyimpan, merekam, atau menyiarkan ulang file audio.
+            Browser Anda mengambil siaran langsung dari server milik stasiun pemancar.
+          </p>
+        </div>
+      </section>
 
-      <h3>Tanpa jaminan</h3>
-      <p>
-        Stream sebuah stasiun bisa berhenti, pindah alamat, atau isinya tidak sesuai dengan data
-        yang tercantum. Isi siaran sepenuhnya tanggung jawab stasiun yang menyiarkannya. Data
-        stasiun diisi komunitas dan tidak diperiksa Dengaran satu per satu, jadi sebagian stasiun
-        bisa berisi konten dewasa.
-      </p>
+      <section id="legalPanelPrivacy" class="dialog-panel" role="tabpanel" aria-labelledby="legalTabPrivacy" hidden>
+        <div class="dialog-section">
+          <h3>Penyimpanan di browser Anda</h3>
+          <p>
+            Favorit, Baru diputar, volume suara, stasiun terakhir, dan pengaturan pintasan disimpan
+            secara lokal di browser (<code>localStorage</code>) dan tidak dikirim ke Dengaran.
+            Tombol &times; pada pemutar menghapus stasiun terakhir. Data lainnya terhapus jika Anda
+            menghapus data situs Dengaran pada pengaturan browser.
+          </p>
+        </div>
 
-      <h3>Privasi</h3>
-      <ul>
-        <li>
-          Favorit, Baru diputar, volume, stasiun terakhir, dan pengaturan pintasan disimpan di
-          browser Anda (<code>localStorage</code>) dan tidak dikirim ke Dengaran.
-        </li>
-        <li>
-          Dengaran tidak memasang cookie dan tidak menampilkan iklan. Situs ini di-host di
-          Cloudflare Pages. Jumlah kunjungan dihitung dengan Cloudflare Web Analytics, yang tidak
-          memakai cookie. Untuk itu Cloudflare menerima alamat IP, jenis browser, halaman yang
-          dibuka, dan situs asal kunjungan.
-        </li>
-        <li>
-          Daftar stasiun diambil dari Radio Browser, dan siaran diambil langsung dari server milik
-          stasiun. Saat Anda memutar stasiun, Dengaran melaporkan stasiun itu ke Radio Browser
-          sebagai satu klik untuk peringkat popularitas. Pihak-pihak itu menerima alamat IP Anda dan
-          mengelolanya menurut kebijakan mereka sendiri.
-        </li>
-        <li>
-          Kalau Anda mengirim email atau dukungan lewat <span data-fill="platform"></span>, pengelola Dengaran menerima alamat
-          email, nama, dan pesan yang Anda tulis. Data itu hanya dipakai untuk membalas atau
-          mencatat dukungan.
-        </li>
-        <li>
-          Tombol &times; di pemutar menghapus stasiun terakhir. Data lainnya terhapus kalau Anda
-          menghapus data situs Dengaran di pengaturan browser.
-        </li>
-      </ul>
-      <p>
-        Pengelola data adalah pengelola Dengaran (kontak di bawah). Data analytics dipakai untuk
-        mengetahui jumlah dan sumber kunjungan, dan disimpan oleh Cloudflare menurut kebijakan
-        Cloudflare. Email disimpan selama diperlukan untuk menjawab permintaan Anda. Anda bisa
-        meminta salinan, koreksi, atau penghapusan data yang Dengaran terima lewat email ke alamat
-        di bawah.
-      </p>
+        <div class="dialog-section">
+          <h3>Pengukuran kunjungan</h3>
+          <p>
+            Situs ini di-host di Cloudflare Pages. Jumlah kunjungan dihitung menggunakan
+            Cloudflare Web Analytics yang tidak memasang cookie dan tidak mengidentifikasi
+            pengunjung secara individual. Cloudflare menerima alamat IP, jenis browser,
+            halaman yang dibuka, serta situs asal kunjungan.
+          </p>
+        </div>
 
-      <h3>Kontak</h3>
-      <p>
-        Pertanyaan privasi dikirim lewat email ke
-        <a id="contactLink" href="#"><span data-fill="email"></span></a>. Alamat yang sama dipakai
-        pemilik stasiun atau pemegang hak cipta yang ingin stasiunnya disembunyikan dari Dengaran.
-        Sertakan nama stasiun, link atau <code>stationuuid</code>-nya di Radio Browser, dan keterangan
-        bahwa Anda pemilik stasiun atau mewakili pemegang hak. Permintaan ini tidak mengubah data di
-        Radio Browser. Untuk mengubah atau menghapus data di sana, hubungi Radio Browser.
-      </p>
+        <div class="dialog-section">
+          <h3>Koneksi ke pihak ketiga</h3>
+          <p>
+            Daftar stasiun diambil dari Radio Browser, dan siaran diambil langsung dari server stasiun.
+            Saat Anda memutar stasiun, Dengaran melaporkan satu klik ke Radio Browser untuk peringkat
+            popularitas. Pihak tersebut menerima alamat IP Anda dan mengelolanya menurut kebijakan mereka.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Dukungan &amp; korespondensi</h3>
+          <p>
+            Jika Anda mengirim email atau dukungan lewat <span data-fill="platform"></span>, pengelola
+            Dengaran menerima alamat email, nama, dan pesan untuk keperluan balasan atau pencatatan dukungan.
+            Anda dapat meminta salinan, koreksi, atau penghapusan data tersebut via email.
+          </p>
+        </div>
+      </section>
+
+      <section id="legalPanelTerms" class="dialog-panel" role="tabpanel" aria-labelledby="legalTabTerms" hidden>
+        <div class="dialog-section">
+          <h3>Hak cipta dan merek</h3>
+          <p>
+            Siaran dan merek stasiun adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
+            dengan stasiun mana pun. Browser Anda mengambil siaran langsung dari server milik stasiun.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Tanpa jaminan layanan</h3>
+          <p>
+            Stream sebuah stasiun dapat berhenti, berpindah alamat, atau berbeda dari data yang tercantum.
+            Isi siaran sepenuhnya tanggung jawab stasiun yang menyiarkannya. Karena data dihimpun komunitas,
+            sebagian stasiun dapat memuat konten untuk pendengar dewasa.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Permohonan sembunyikan stasiun</h3>
+          <p>
+            Pemilik stasiun atau pemegang hak cipta yang ingin stasiunnya disembunyikan dari Dengaran
+            dapat mengirim email ke <a id="contactLink" href="#"><span data-fill="email"></span></a>.
+          </p>
+          <p>
+            Sertakan nama stasiun, link atau <code>stationuuid</code> di Radio Browser, serta keterangan
+            bahwa Anda pemilik stasiun atau perwakilan sah. Permintaan ini berlaku untuk Dengaran.
+            Untuk mengubah atau menghapus data di basis data publik, hubungi Radio Browser.
+          </p>
+        </div>
+      </section>
 
       <p class="dialog-note">
         Dikelola oleh <span data-fill="owner"></span>. Terakhir diperbarui

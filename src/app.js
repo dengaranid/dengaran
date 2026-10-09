@@ -871,7 +871,11 @@ function setupDialogs() {
   document.querySelectorAll("[data-open-dialog]").forEach(button => {
     button.addEventListener("click", () => {
       const dialog = document.getElementById(button.dataset.openDialog);
-      if (dialog && !dialog.open) dialog.showModal();
+      if (dialog && !dialog.open) {
+        const firstTab = dialog.querySelector('.dialog-tabs [role="tab"]');
+        if (firstTab) selectDialogTab(firstTab, false);
+        dialog.showModal();
+      }
     });
   });
 
@@ -884,7 +888,67 @@ function setupDialogs() {
     dialog.addEventListener("click", event => {
       if (event.target === dialog) dialog.close();
     });
+
+    setupDialogTabs(dialog);
   });
+}
+
+function setupDialogTabs(dialog) {
+  const tablist = dialog.querySelector('.dialog-tabs[role="tablist"]');
+  if (!tablist) return;
+
+  const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+
+  tablist.addEventListener("click", event => {
+    const tab = event.target.closest('[role="tab"]');
+    if (tab && tabs.includes(tab)) selectDialogTab(tab, true);
+  });
+
+  tablist.addEventListener("keydown", event => {
+    const currentTab = event.target.closest('[role="tab"]');
+    if (!currentTab || !tabs.includes(currentTab)) return;
+
+    const currentIndex = tabs.indexOf(currentTab);
+    let nextIndex = null;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = tabs.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      event.preventDefault();
+      const targetTab = tabs[nextIndex];
+      selectDialogTab(targetTab, true);
+      targetTab.focus();
+    }
+  });
+}
+
+function selectDialogTab(selectedTab, shouldScroll = false) {
+  const tablist = selectedTab.closest('[role="tablist"]');
+  const dialog = selectedTab.closest("dialog");
+  if (!tablist || !dialog) return;
+
+  const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+  tabs.forEach(tab => {
+    const isSelected = tab === selectedTab;
+    tab.setAttribute("aria-selected", String(isSelected));
+    tab.tabIndex = isSelected ? 0 : -1;
+    const panelId = tab.getAttribute("aria-controls");
+    const panel = dialog.querySelector(`#${cssEscape(panelId)}`);
+    if (panel) panel.hidden = !isSelected;
+  });
+
+  if (shouldScroll) {
+    const body = dialog.querySelector(".dialog-body");
+    if (body) body.scrollTop = 0;
+  }
 }
 
 function fillSiteInfo() {
