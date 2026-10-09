@@ -4,8 +4,9 @@
 # Impeccable
 /.impeccable/
 
-# Ceklis development
+# Development tools
 /ceklis/
+/prompts/
 
 # Hasil build, dibuat ulang oleh scripts/build_public.py
 /public/
