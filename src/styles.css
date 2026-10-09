@@ -890,6 +890,58 @@ kbd {
   background: var(--primary);
 }
 
+/* Tombol putar di baris list: versi outline, tanpa latar berisi. Latar berisi hanya
+   dipakai tombol di mini player, supaya Stop krem tampil satu kali di layar.
+   Latar baru muncul saat hover atau fokus keyboard. Ikon hijau 7.4:1 di panel. */
+[data-play-button].btn-play,
+[data-play-button].btn-stop,
+[data-play-button].btn-loading {
+  background: transparent;
+}
+
+[data-play-button].btn-play {
+  border-color: rgba(147, 179, 159, 0.4);
+  color: var(--success-soft);
+}
+
+[data-play-button].btn-stop {
+  border-color: rgba(230, 225, 216, 0.35);
+  color: var(--stop);
+}
+
+[data-play-button].btn-loading {
+  border-color: rgba(143, 166, 185, 0.4);
+  color: var(--primary);
+}
+
+/* Hover dibatasi ke perangkat dengan pointer hover: di layar sentuh, :hover tertinggal
+   sesudah tap dan tombol baris aktif kembali tampil krem penuh. */
+[data-play-button].btn-play:focus-visible {
+  border-color: transparent;
+  color: var(--on-accent);
+  background: var(--play);
+}
+
+[data-play-button].btn-stop:focus-visible {
+  border-color: transparent;
+  color: var(--ink);
+  background: var(--stop);
+}
+
+@media (hover: hover) {
+  [data-play-button].btn-play:hover {
+    border-color: transparent;
+    color: var(--on-accent);
+    background: var(--play);
+  }
+
+  [data-play-button].btn-stop:hover {
+    border-color: transparent;
+    color: var(--ink);
+    background: var(--stop);
+  }
+}
+
 .icon-btn.play-main:disabled {
   border-color: var(--border);
   color: var(--muted);
