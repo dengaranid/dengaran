@@ -2,7 +2,7 @@
 
 Dengaran memakai ikon dari [Lucide](https://lucide.dev), diambil dari paket `lucide-static` versi 1.53.0. Path SVG ikon ditulis langsung di `src/app.js`, `src/index.html`, `src/styles.css`, dan `assets/favicon.svg`.
 
-Ikon yang dipakai: `chevron-down`, `circle-alert`, `coffee`, `heart`, `loader-circle`, `play`, `radio-receiver`, `rotate-ccw`, `search`, `square`, `volume-1`, `volume-2`, `volume-x`, `x`.
+Ikon yang dipakai: `chevron-down`, `circle-alert`, `coffee`, `heart`, `loader-circle`, `play`, `rotate-ccw`, `search`, `square`, `volume-1`, `volume-2`, `volume-x`, `x`.
 
 Lima di antaranya (`chevron-down`, `circle-alert`, `search`, `square`, `x`) berasal dari project Feather, jadi lisensi MIT Feather juga berlaku untuk kelima ikon itu.
 
