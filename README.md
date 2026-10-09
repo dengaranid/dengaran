@@ -16,6 +16,8 @@ Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework,
 - Stasiun HLS (`.m3u8`) diputar lewat [hls.js](https://github.com/video-dev/hls.js) di browser yang tidak memutar HLS sendiri, misalnya Firefox. hls.js memilih bitrate otomatis kalau stasiunnya menyediakan beberapa bitrate, dan menjaga latensi ke siaran live di 3 sampai 6 segmen. File hls.js hanya diunduh saat stasiun HLS diputar.
 - Di halaman HTTPS, pencarian hanya menampilkan stasiun dengan stream HTTPS. Stasiun HTTP lama yang masih ada di Favorit atau Baru diputar diberi label `HTTP`, karena browser bisa memblokirnya.
 
+Cara kerja pemutaran, batas waktu, dan sambung ulang dijelaskan di [docs/streaming.md](docs/streaming.md).
+
 ## Struktur folder
 
 ```
@@ -23,6 +25,7 @@ src/                     sumber aplikasi (index.html, styles.css, app.js)
 src/vendor/              library pihak ketiga yang dimuat saat dibutuhkan (hls.js)
 assets/                  favicon, apple-touch-icon, gambar preview og-image
 scripts/build_public.py  script build ke public/
+docs/                    dokumentasi teknis, tidak ikut ke public/
 bin/dev                  server preview lokal
 bin/build                build ke public/
 public/                  hasil build, tidak masuk repo
