@@ -1,10 +1,11 @@
 "use strict";
 
-// Daftar mirror API, dicoba berurutan jika salah satu down.
+// Radio Browser meminta klien mengambil daftar server dari all.api, mengacaknya, lalu pindah ke
+// server berikutnya kalau satu gagal. API_MIRRORS dipakai kalau daftar itu gagal diambil.
+const API_SERVER_LIST_URL = "https://all.api.radio-browser.info/json/servers";
+const API_SERVER_LIST_TIMEOUT_MS = 2500;
 const API_MIRRORS = [
-  "https://de1.api.radio-browser.info/json",
-  "https://nl1.api.radio-browser.info/json",
-  "https://at1.api.radio-browser.info/json"
+  "https://de1.api.radio-browser.info/json"
 ];
 
 // Isian dialog Tentang dan Dukung.
@@ -1686,8 +1687,45 @@ function checkLoadMoreProximity() {
 // - data JSON jika berhasil
 // - "aborted" jika request dibatalkan (pencarian baru)
 // - null jika semua mirror gagal
+let apiServersPromise = null;
+let apiServers = null;
+
+// Daftar server diambil sekali per kunjungan. Hanya host *.api.radio-browser.info yang dipakai,
+// karena isi respons menentukan ke mana fetch berikutnya dikirim.
+function getApiServers() {
+  if (!apiServersPromise) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_SERVER_LIST_TIMEOUT_MS);
+    apiServersPromise = fetch(API_SERVER_LIST_URL, { signal: controller.signal })
+      .then(response => (response.ok ? response.json() : []))
+      .then(list => {
+        const names = Array.isArray(list)
+          ? list.map(server => server && server.name).filter(name => /^[a-z0-9-]+\.api\.radio-browser\.info$/i.test(name || ""))
+          : [];
+        const servers = shuffle([...new Set(names)]).map(name => `https://${name}/json`);
+        apiServers = servers.length ? servers : API_MIRRORS;
+        return apiServers;
+      })
+      .catch(() => (apiServers = API_MIRRORS))
+      .finally(() => clearTimeout(timer));
+  }
+  return apiServersPromise;
+}
+
+function shuffle(items) {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+// Request pertama tidak menunggu daftar server: selama daftar belum ada, API_MIRRORS dipakai,
+// jadi daftar stasiun pertama tidak tertunda satu request tambahan.
 async function apiFetch(path, { signal } = {}) {
-  for (const base of API_MIRRORS) {
+  getApiServers();
+  const servers = apiServers || API_MIRRORS;
+  for (const base of servers) {
     try {
       const response = await fetch(base + path, { signal });
       if (!response.ok) continue;
@@ -1703,7 +1741,9 @@ async function apiFetch(path, { signal } = {}) {
 // Laporkan "click" ke Radio Browser agar ranking popularitas akurat.
 // Fire-and-forget: kegagalan diabaikan, cukup satu mirror.
 function reportClick(stationId) {
-  fetch(`${API_MIRRORS[0]}/url/${encodeURIComponent(stationId)}`).catch(() => {});
+  getApiServers()
+    .then(servers => fetch(`${servers[0]}/url/${encodeURIComponent(stationId)}`))
+    .catch(() => {});
 }
 
 // ---------- Util ----------

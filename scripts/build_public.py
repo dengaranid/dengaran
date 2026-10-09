@@ -48,11 +48,12 @@ CF_ANALYTICS_TOKEN = "93b56a911b5f4956b159046e7cdc8931"
 CF_ANALYTICS_SCRIPT_HOST = "https://static.cloudflareinsights.com"
 CF_ANALYTICS_REPORT_HOST = "https://cloudflareinsights.com"
 
-# Host API Radio Browser yang dipanggil fetch(). Harus sama dengan API_MIRRORS di src/app.js.
+# Host API Radio Browser yang dipanggil fetch(). Harus sama dengan API_SERVER_LIST_URL dan
+# API_MIRRORS di src/app.js. Server lain dari daftar all.api tetap diizinkan karena connect-src
+# memuat https:.
 API_HOSTS = [
+    "https://all.api.radio-browser.info",
     "https://de1.api.radio-browser.info",
-    "https://nl1.api.radio-browser.info",
-    "https://at1.api.radio-browser.info",
 ]
 
 
