@@ -625,7 +625,9 @@ kbd {
   transform: rotate(180deg);
 }
 
-.group + .group .group-title {
+/* Grup tersembunyi (Favorit kosong) tetap ada di DOM. Tanpa :not([hidden]) judul grup
+   berikutnya mendapat garis atas yang menempel ke garis bawah header panel. */
+.group:not([hidden]) + .group .group-title {
   border-top: 1px solid var(--border);
 }
 
