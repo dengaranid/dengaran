@@ -299,10 +299,6 @@ toast.addEventListener("focusout", resumeToast);
 
 favoriteToggle.addEventListener("click", () => setFavoritesExpanded(!favoritesExpanded));
 
-// Fallback logo: sembunyikan gambar rusak, tampilkan inisial di belakangnya.
-[favoriteList, stationList, historyList, playerArt].forEach(element => {
-  element.addEventListener("error", handleLogoError, true);
-});
 
 document.addEventListener("keydown", handleShortcut);
 shortcutToggle.addEventListener("click", () => {
@@ -482,8 +478,7 @@ async function loadStations({ append = false } = {}) {
   hasMore = data.length === PAGE_SIZE;
 
   if (append) {
-    // Sisipkan kartu baru saja. Kartu lama tidak diganti, jadi fokus keyboard
-    // dan gambar logo yang sudah dimuat tetap.
+    // Sisipkan kartu baru saja. Kartu lama tidak diganti, jadi fokus keyboard tetap.
     stations = stations.concat(newStations);
     const added = newStations.filter(station => !isFavorite(station.id));
     stationList.insertAdjacentHTML("beforeend", added.map(createStationCard).join(""));
@@ -499,16 +494,6 @@ async function loadStations({ append = false } = {}) {
   requestAnimationFrame(checkLoadMoreProximity);
 }
 
-// Logo stasiun di Radio Browser kadang memakai http://. Halaman ini HTTPS dan CSP img-src hanya
-// mengizinkan https:, jadi browser tetap meminta versi https://. Mengubahnya di sini menghilangkan
-// peringatan Mixed Content di console tanpa mengubah logo mana yang tampil.
-// Nilai kosong atau bukan string menjadi "", dan stasiun ditampilkan tanpa logo.
-function httpsImageUrl(value) {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim();
-  return trimmed.replace(/^http:\/\//i, "https://");
-}
-
 function normalizeStation(station) {
   return {
     id: station.stationuuid,
@@ -520,7 +505,6 @@ function normalizeStation(station) {
     bitrate: station.bitrate || 0,
     codec: station.codec || "",
     hls: station.hls === 1,
-    favicon: httpsImageUrl(station.favicon),
     url: station.url_resolved || station.url
   };
 }
@@ -631,19 +615,6 @@ function stateClasses(state) {
   return "";
 }
 
-function logoHtml(station) {
-  return `
-    <span class="logo-wrap" aria-hidden="true">
-      <span>${escapeHtml(getInitials(station.name))}</span>
-      ${
-        station.favicon
-          ? `<img src="${escapeHtml(station.favicon)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
-          : ""
-      }
-    </span>
-  `;
-}
-
 // Favorit dan Baru diputar bisa berisi stasiun HTTP yang disimpan sebelumnya: beri label.
 function isInsecureStream(station) {
   return SECURE_PAGE && /^http:/i.test(String(station.url || ""));
@@ -680,8 +651,6 @@ function createStationCard(station) {
 
   return `
     <article class="card ${stateClasses(state)}" data-station-id="${escapeHtml(station.id)}">
-      ${logoHtml(station)}
-
       <div class="card-main">
         <h4 class="card-title" title="${escapeHtml(station.name)}">
           ${NOW_DOT_HTML}
@@ -710,7 +679,6 @@ function createHistoryRow(station) {
   const state = playStateFor(station.id);
   return `
     <li class="row ${stateClasses(state)}" data-station-id="${escapeHtml(station.id)}">
-      ${logoHtml(station)}
       <div class="row-main">
         <span class="row-name">${NOW_DOT_HTML}<span>${escapeHtml(station.name)}</span></span>
         <span class="row-meta">${insecureBadgeHtml(station)}${escapeHtml(metaText(station, { withLanguage: false }))}</span>
@@ -817,21 +785,8 @@ function updatePlaybackUI() {
 }
 
 function setPlayerStation(station) {
-  if (!station) {
-    playerArt.innerHTML = ICONS.radio;
-    nowPlaying.textContent = "Belum ada radio diputar";
-    return;
-  }
-
-  playerArt.innerHTML = `
-    <span>${escapeHtml(getInitials(station.name))}</span>
-    ${
-      station.favicon
-        ? `<img src="${escapeHtml(station.favicon)}" alt="" referrerpolicy="no-referrer" />`
-        : ""
-    }
-  `;
-  nowPlaying.textContent = station.name;
+  playerArt.innerHTML = ICONS.radio;
+  nowPlaying.textContent = station ? station.name : "Belum ada radio diputar";
 }
 
 // ---------- Aksi kartu (event delegation) ----------
@@ -856,13 +811,6 @@ function handleCardAction(event) {
     if (activeTag) setActiveTag("");
     else startNewSearch();
     searchInput.focus();
-  }
-}
-
-function handleLogoError(event) {
-  const img = event.target;
-  if (img.tagName === "IMG" && img.closest(".logo-wrap")) {
-    img.hidden = true;
   }
 }
 
@@ -1436,8 +1384,7 @@ function setMediaSession(station) {
   navigator.mediaSession.metadata = new MediaMetadata({
     title: station.name,
     artist: localizedCountry(station.countryCode, station.country) || "Dengaran",
-    album: "Dengaran",
-    artwork: station.favicon ? [{ src: station.favicon }] : []
+    album: "Dengaran"
   });
 
   setMediaAction("play", () => {
@@ -1753,10 +1700,10 @@ function reportClick(stationId) {
 function loadStationList(key) {
   const saved = loadJson(key, []);
   if (!Array.isArray(saved)) return [];
-  // Favorit yang disimpan sebelum httpsImageUrl ada masih bisa berisi logo http://.
+  // Stasiun yang disimpan sebelum logo dihapus masih berisi field favicon: dibuang saat dibaca.
   return saved
     .filter(station => station && station.id && !isBlockedStation(station))
-    .map(station => ({ ...station, favicon: httpsImageUrl(station.favicon) }));
+    .map(({ favicon, ...station }) => station);
 }
 
 function loadJson(key, fallback) {
@@ -1858,13 +1805,6 @@ function hideToast() {
   toast.hidden = true;
   toastPaused = false;
   toastActionHandler = null;
-}
-
-function getInitials(name) {
-  const words = String(name).trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "R";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 // "bahasa indonesia,indonesian" menjadi "Bahasa Indonesia".

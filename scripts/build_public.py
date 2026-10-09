@@ -351,8 +351,8 @@ def build_csp():
         # Script analytics Cloudflare hanya diizinkan kalau CF_ANALYTICS_TOKEN diisi.
         " ".join(["script-src 'self'"] + script_hosts),
         "style-src 'self'",
-        # Logo situs sendiri dan logo stasiun dari host mana pun; data: untuk ikon error di CSS.
-        "img-src 'self' https: data:",
+        # Gambar hanya dari situs sendiri (logo stasiun tidak lagi ditampilkan); data: untuk ikon di CSS.
+        "img-src 'self' data:",
         # Stream audio dari server stasiun mana pun. Halaman HTTPS hanya bisa memutar https:.
         # blob: untuk stream HLS yang diputar hls.js lewat Media Source Extensions.
         "media-src https: blob:",
