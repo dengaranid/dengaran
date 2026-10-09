@@ -628,6 +628,9 @@ kbd {
 /* Grup tersembunyi (Favorit kosong) tetap ada di DOM. Tanpa :not([hidden]) judul grup
    berikutnya mendapat garis atas yang menempel ke garis bawah header panel. */
 .group:not([hidden]) + .group .group-title {
+  /* Saat menempel, garis atas ini berdempetan dengan garis bawah header panel dan tampak
+     dobel. top: -1px menaruh garis itu tepat di luar area scroll, jadi terpotong overflow. */
+  top: -1px;
   border-top: 1px solid var(--border);
 }
 
