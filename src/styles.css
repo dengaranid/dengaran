@@ -533,10 +533,37 @@ kbd {
   font-weight: 600;
 }
 
-.count {
-  color: var(--muted);
-  font-size: 0.88rem;
+/* Jumlah radio di judul grup dan header panel. Warnanya biru abu (--primary), supaya
+   berbeda dari tag genre yang abu netral dan bisa diklik.
+   Badge kosong (daftar sedang dimuat atau gagal) disembunyikan. */
+.count-badge {
+  flex: none;
+  align-self: center;
+  min-width: 22px;
+  margin-left: 4px;
+  padding: 0 6px;
+  color: var(--primary);
+  background: rgba(143, 166, 185, 0.14);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: center;
   white-space: nowrap;
+}
+
+.count-badge:empty {
+  display: none;
+}
+
+/* Badge di header panel menempel ke judulnya, sama dengan badge di judul grup. */
+.section-header:has(> .count-badge) {
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.section-header > .count-badge {
+  margin-left: 8px;
 }
 
 .panel-scroll {

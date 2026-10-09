@@ -500,7 +500,7 @@ async function loadStations({ append = false } = {}) {
         <button class="btn btn-inline" type="button" data-action="retry-list">Coba lagi</button>
       </div>
     `;
-    // Jumlah radio tidak diketahui saat gagal, jadi count dikosongkan, bukan (0).
+    // Jumlah radio tidak diketahui saat gagal, jadi badge dikosongkan (tersembunyi), bukan 0.
     stationCount.textContent = "";
     announce("Gagal memuat daftar radio.");
     loadMoreButton.hidden = true;
@@ -575,7 +575,7 @@ function updateStationCount() {
   // Selama daftar dimuat, count dibiarkan kosong sampai hasil baru dirender.
   if (stationList.querySelector(".loading")) return;
   const resultTotal = stationList.querySelectorAll(".card").length;
-  stationCount.textContent = `(${resultTotal})`;
+  stationCount.textContent = String(resultTotal);
 }
 
 function renderStations() {
@@ -631,13 +631,13 @@ function renderFavorites() {
 
   const list = visibleFavorites();
   favoriteGroup.hidden = list.length === 0;
-  favoriteCount.textContent = `(${list.length})`;
+  favoriteCount.textContent = String(list.length);
   favoriteList.innerHTML = list.map(createStationCard).join("");
   updateStationCount();
 }
 
 function renderHistory() {
-  historyCount.textContent = `${history.length} radio`;
+  historyCount.textContent = String(history.length);
 
   if (history.length === 0) {
     historyList.innerHTML = `<li class="empty">Belum ada radio yang diputar.</li>`;
