@@ -650,6 +650,31 @@ kbd {
   display: none;
 }
 
+/* Halaman 404 dibuat scripts/build_public.py dan memakai stylesheet yang sama. */
+.not-found {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20vh 24px 24px;
+}
+
+.not-found h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.not-found p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.not-found a {
+  color: var(--primary);
+}
+
 /* Isi panel berupa baris datar yang dipisah garis tipis. */
 /* Baris ringkas: nama di atas, info dan tag satu baris di bawahnya. */
 .card {

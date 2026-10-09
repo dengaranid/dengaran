@@ -22,6 +22,7 @@ import json
 import re
 import shutil
 import sys
+import subprocess
 from datetime import date
 from pathlib import Path
 
@@ -36,7 +37,7 @@ SITE_URL = "https://dengaran.pages.dev"
 SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->"
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
 JS_TAG = '<script defer src="app.js"></script>'
-ASSET_FILES = ["favicon.svg", "apple-touch-icon.png", "og-image.png"]
+ASSET_FILES = ["favicon.svg", "favicon-48.png", "apple-touch-icon.png", "og-image.png"]
 # Library pihak ketiga yang dimuat app.js saat dibutuhkan. Disalin apa adanya, tanpa minify ulang.
 VENDOR_DIR = SRC_DIR / "vendor"
 
@@ -245,17 +246,32 @@ def seo_tags(html):
     page_url = SITE_URL + "/"
     image_url = SITE_URL + "/og-image.png"
 
+    website_id = page_url + "#website"
+    # WebSite dipakai Google untuk nama situs di hasil pencarian. SearchAction tidak ditulis
+    # karena pencarian di aplikasi tidak punya URL sendiri.
     json_ld = {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Dengaran",
-        "url": page_url,
-        "description": description,
-        "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Web",
-        "inLanguage": "id",
-        "isAccessibleForFree": True,
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "IDR"},
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": website_id,
+                "name": "Dengaran",
+                "url": page_url,
+                "inLanguage": "id",
+            },
+            {
+                "@type": "WebApplication",
+                "name": "Dengaran",
+                "url": page_url,
+                "description": description,
+                "applicationCategory": "MultimediaApplication",
+                "operatingSystem": "Web",
+                "inLanguage": "id",
+                "isAccessibleForFree": True,
+                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "IDR"},
+                "isPartOf": {"@id": website_id},
+            },
+        ],
     }
 
     return "\n".join(
@@ -272,6 +288,48 @@ def seo_tags(html):
             + "</script>",
         ]
     )
+
+
+def last_modified():
+    """Tanggal commit terakhir yang mengubah src/index.html, untuk lastmod di sitemap.
+
+    Tanggal build berubah di setiap deploy walau isinya sama, dan Google mengabaikan lastmod
+    yang terbukti tidak akurat. Kalau git tidak tersedia, tanggal hari ini dipakai.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "--", "src/index.html"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return date.today().isoformat()
+    return result.stdout.strip() or date.today().isoformat()
+
+
+def not_found_page(css_name):
+    """Halaman 404. Tanpa 404.html, Cloudflare Pages menjawab semua path dengan index.html
+    dan status 200, sehingga URL yang tidak ada terbaca sebagai duplikat beranda (soft 404)."""
+    return f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Halaman tidak ditemukan | Dengaran</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0f1113" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/{css_name}" />
+</head>
+<body>
+  <main class="not-found">
+    <h1>Halaman tidak ditemukan</h1>
+    <p>Alamat ini tidak ada di Dengaran. Mungkin link-nya salah ketik atau sudah tidak dipakai.</p>
+    <p><a href="/">Buka Dengaran</a></p>
+  </main>
+</body>
+</html>
+"""
 
 
 def analytics_tag():
@@ -349,6 +407,7 @@ def main():
     OUTPUT_DIR.mkdir()
 
     (OUTPUT_DIR / "index.html").write_text(html, encoding="utf-8")
+    (OUTPUT_DIR / "404.html").write_text(not_found_page(css_name), encoding="utf-8")
     (OUTPUT_DIR / css_name).write_text(css, encoding="utf-8")
     (OUTPUT_DIR / js_name).write_text(js, encoding="utf-8")
 
@@ -370,7 +429,7 @@ def main():
     (OUTPUT_DIR / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"  <url><loc>{SITE_URL}/</loc><lastmod>{date.today().isoformat()}</lastmod></url>\n"
+        f"  <url><loc>{SITE_URL}/</loc><lastmod>{last_modified()}</lastmod></url>\n"
         "</urlset>\n",
         encoding="utf-8",
     )
@@ -401,7 +460,7 @@ def main():
 
     print(f"public/{css_name}  {size(css_source)} -> {size(css)} byte")
     print(f"public/{js_name}  {size(js_source)} -> {size(js)} byte")
-    print(f"public/index.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt untuk {SITE_URL}")
+    print(f"public/index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt untuk {SITE_URL}")
     if CF_ANALYTICS_TOKEN:
         print("Cloudflare Web Analytics: disisipkan")
     else:
