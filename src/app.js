@@ -28,8 +28,15 @@ const BLOCKED_STATION_IDS = [
 ];
 const blockedStationIds = new Set(BLOCKED_STATION_IDS.map(id => String(id).toLowerCase()));
 
+// Stasiun dengan salah satu tag ini disembunyikan dari pencarian, Favorit, dan Baru diputar.
+// Dicocokkan dengan tag persis, bukan potongan nama: "adult" tidak dipakai karena di Radio
+// Browser berarti format musik (adult contemporary), dan "sex" ada di nama seperti "BBC Essex".
+const BLOCKED_TAGS = new Set(["erotic", "porn", "xxx", "nsfw"]);
+
 function isBlockedStation(station) {
-  return Boolean(station && blockedStationIds.has(String(station.id).toLowerCase()));
+  if (!station) return false;
+  if (blockedStationIds.has(String(station.id).toLowerCase())) return true;
+  return allTags(station.tags).some(tag => BLOCKED_TAGS.has(tag));
 }
 
 const DEFAULT_COUNTRY = "ID";

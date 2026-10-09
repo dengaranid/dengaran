@@ -66,6 +66,6 @@ dengaranid@gmail.com
 
 ## Sumber data dan atribusi
 
-- Data stasiun: [Radio Browser](https://www.radio-browser.info), layanan komunitas yang juga dibiayai donasi. Siaran, nama, dan logo adalah milik masing-masing stasiun.
+- Data stasiun: [Radio Browser](https://www.radio-browser.info), proyek komunitas yang gratis dan open source. Siaran dan nama stasiun adalah milik masing-masing stasiun.
 - Pemutar HLS: [hls.js](https://github.com/video-dev/hls.js), lisensi Apache-2.0. Teks lisensinya juga ada di [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - Ikon: [Lucide](https://lucide.dev), lisensi ISC. Sebagian ikon berasal dari Feather (lisensi MIT). Teks lengkap kedua lisensi ada di [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

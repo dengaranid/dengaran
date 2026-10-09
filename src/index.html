@@ -244,7 +244,8 @@
       <div class="support-layout">
         <p>
           Dengaran gratis, tanpa iklan, dan tanpa daftar akun. Kalau Anda sering memakainya,
-          Anda bisa mentraktir kopi untuk pembuatnya.
+          Anda bisa mentraktir kopi untuk pembuatnya. Dukungan bersifat sukarela dan tidak membuka
+          fitur tambahan.
         </p>
         <a id="supportLink" class="support-cta" href="#" target="_blank" rel="noopener">
           <span>Traktir kopi di <span data-fill="platform"></span></span>
@@ -261,7 +262,7 @@
       <p>
         Daftar stasiun di Dengaran berasal dari
         <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
-        layanan komunitas yang juga dibiayai donasi.
+        proyek komunitas yang gratis dan open source.
       </p>
     </div>
   </dialog>
@@ -284,15 +285,17 @@
 
       <h3>Sumber data</h3>
       <p>
-        Nama stasiun, logo, negara, bahasa, dan tag diambil dari
+        Nama stasiun, negara, bahasa, dan tag diambil dari
         <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a>,
-        basis data stasiun radio yang diisi oleh komunitas. Pemakaian data itu mengikuti ketentuan
-        Radio Browser. Kalau data sebuah stasiun salah, laporkan langsung ke Radio Browser.
+        basis data stasiun radio yang diisi oleh komunitas. Radio Browser mengizinkan datanya
+        dipakai bebas, tanpa jaminan layanan
+        (<a href="https://api.radio-browser.info" target="_blank" rel="noopener">dokumentasi API</a>).
+        Kalau data sebuah stasiun salah, laporkan langsung ke Radio Browser.
       </p>
 
       <h3>Hak cipta dan merek</h3>
       <p>
-        Siaran, nama, dan logo adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
+        Siaran dan nama stasiun adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
         dengan stasiun mana pun. Dengaran tidak menyimpan, merekam, atau menyiarkan ulang audio.
         Browser Anda mengambil siaran langsung dari server milik stasiun.
       </p>
@@ -300,40 +303,61 @@
       <h3>Tanpa jaminan</h3>
       <p>
         Stream sebuah stasiun bisa berhenti, pindah alamat, atau isinya tidak sesuai dengan data
-        yang tercantum. Isi siaran sepenuhnya tanggung jawab stasiun yang menyiarkannya.
+        yang tercantum. Isi siaran sepenuhnya tanggung jawab stasiun yang menyiarkannya. Data
+        stasiun diisi komunitas dan tidak diperiksa Dengaran satu per satu, jadi sebagian stasiun
+        bisa berisi konten dewasa.
       </p>
 
       <h3>Privasi</h3>
       <ul>
         <li>
-          Favorit, Baru diputar, volume, dan stasiun terakhir disimpan di browser Anda
-          (<code>localStorage</code>) dan tidak dikirim ke server Dengaran.
+          Favorit, Baru diputar, volume, stasiun terakhir, dan pengaturan pintasan disimpan di
+          browser Anda (<code>localStorage</code>) dan tidak dikirim ke Dengaran.
         </li>
         <li>
-          Tanpa cookie dan tanpa iklan. Jumlah kunjungan dihitung dengan Cloudflare Web Analytics,
-          yang tidak memakai cookie dan tidak mengenali pengunjung satu per satu.
+          Dengaran tidak memasang cookie dan tidak menampilkan iklan. Situs ini di-host di
+          Cloudflare Pages. Jumlah kunjungan dihitung dengan Cloudflare Web Analytics, yang tidak
+          memakai cookie. Untuk itu Cloudflare menerima alamat IP, jenis browser, halaman yang
+          dibuka, dan situs asal kunjungan.
         </li>
         <li>
-          Saat mencari dan memutar radio, browser Anda menghubungi Radio Browser, server stream
-          stasiun, dan server logo stasiun. Pihak-pihak itu dapat melihat alamat IP Anda.
+          Daftar stasiun diambil dari Radio Browser, dan siaran diambil langsung dari server milik
+          stasiun. Saat Anda memutar stasiun, Dengaran melaporkan stasiun itu ke Radio Browser
+          sebagai satu klik untuk peringkat popularitas. Pihak-pihak itu menerima alamat IP Anda dan
+          mengelolanya menurut kebijakan mereka sendiri.
+        </li>
+        <li>
+          Kalau Anda mengirim email atau dukungan lewat Saweria, pengelola Dengaran menerima alamat
+          email, nama, dan pesan yang Anda tulis. Data itu hanya dipakai untuk membalas atau
+          mencatat dukungan.
         </li>
         <li>
           Tombol &times; di pemutar menghapus stasiun terakhir. Data lainnya terhapus kalau Anda
           menghapus data situs Dengaran di pengaturan browser.
         </li>
       </ul>
+      <p>
+        Pengelola data adalah pengelola Dengaran (kontak di bawah). Data analytics dipakai untuk
+        mengetahui jumlah dan sumber kunjungan, dan disimpan oleh Cloudflare menurut kebijakan
+        Cloudflare. Email disimpan selama diperlukan untuk menjawab permintaan Anda. Anda bisa
+        meminta salinan, koreksi, atau penghapusan data yang Dengaran terima lewat email ke alamat
+        di bawah.
+      </p>
 
       <h3>Kontak</h3>
       <p>
-        Pemilik stasiun atau pemegang hak cipta bisa meminta stasiunnya disembunyikan dari Dengaran
-        lewat email ke <a id="contactLink" href="#"><span data-fill="email"></span></a>.
-        Permintaan ini tidak mengubah data di Radio Browser. Untuk mengubah atau menghapus data di
-        sana, hubungi Radio Browser.
+        Pertanyaan privasi dikirim lewat email ke
+        <a id="contactLink" href="#"><span data-fill="email"></span></a>. Alamat yang sama dipakai
+        pemilik stasiun atau pemegang hak cipta yang ingin stasiunnya disembunyikan dari Dengaran.
+        Sertakan nama stasiun, link atau <code>stationuuid</code>-nya di Radio Browser, dan keterangan
+        bahwa Anda pemilik stasiun atau mewakili pemegang hak. Permintaan ini tidak mengubah data di
+        Radio Browser. Untuk mengubah atau menghapus data di sana, hubungi Radio Browser.
       </p>
 
       <p class="dialog-note">
         Dikelola oleh <span data-fill="owner"></span>. Terakhir diperbarui
         <span data-fill="updated"></span>.
+        <a href="third-party-notices.txt" target="_blank" rel="noopener">Lisensi pihak ketiga</a>.
       </p>
     </div>
   </dialog>
