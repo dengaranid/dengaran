@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Server preview lokal untuk Dengaran.
+#
+#   bin/dev              sajikan src/ di port 8080 (perubahan langsung terlihat setelah reload)
+#   bin/dev --public     build ke public/ lalu sajikan public/ (versi minify, sama dengan deploy)
+#   bin/dev 3000         pakai port lain; bisa juga lewat PORT=3000 bin/dev
+#
+# http.server tidak membaca public/_headers, jadi CSP dan cache baru bisa dicek sesudah deploy.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORT="${PORT:-8080}"
+DIR="src"
+
+for arg in "$@"; do
+  case "$arg" in
+    --public) DIR="public" ;;
+    -h|--help)
+      sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    ''|*[!0-9]*)
+      echo "Argumen tidak dikenal: $arg" >&2
+      echo "Pakai: bin/dev [--public] [port]" >&2
+      exit 1
+      ;;
+    *) PORT="$arg" ;;
+  esac
+done
+
+if [ "$DIR" = "public" ]; then
+  "$ROOT/bin/build"
+fi
+
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Port $PORT sudah dipakai proses lain. Pilih port lain: bin/dev <port>" >&2
+  exit 1
+fi
+
+echo "Menyajikan $DIR/ di http://localhost:$PORT/ (Ctrl+C untuk berhenti)"
+exec python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT/$DIR"

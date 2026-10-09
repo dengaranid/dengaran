@@ -22,24 +22,28 @@ src/                     sumber aplikasi (index.html, styles.css, app.js)
 src/vendor/              library pihak ketiga yang dimuat saat dibutuhkan (hls.js)
 assets/                  favicon, apple-touch-icon, gambar preview og-image
 scripts/build_public.py  script build ke public/
+bin/dev                  server preview lokal
+bin/build                build ke public/
 public/                  hasil build, tidak masuk repo
 ```
 
 ## Menjalankan di komputer sendiri
 
 ```bash
-python3 -m http.server 8000 --directory src
+bin/dev              # sajikan src/ di http://localhost:8080
+bin/dev --public     # build ke public/ lalu sajikan versi minify
+bin/dev 3000         # port lain, atau PORT=3000 bin/dev
 ```
 
-Lalu buka http://localhost:8000. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian.
+Script ini menjalankan `python3 -m http.server`, jadi tidak perlu dependensi lain. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian. Server ini tidak membaca `public/_headers`, jadi CSP dan aturan cache baru bisa dicek sesudah deploy.
 
 ## Build
 
 ```bash
-python3 scripts/build_public.py
+bin/build
 ```
 
-Script ini mengisi folder `public/` dengan:
+`bin/build` menjalankan `python3 scripts/build_public.py`. Script ini mengisi folder `public/` dengan:
 
 - `styles.<hash>.min.css` dan `app.<hash>.min.js`, versi minify dengan hash isi di nama file supaya browser selalu mengambil versi terbaru setelah deploy
 - `index.html` yang sudah merujuk ke file minify, plus tag SEO dengan URL absolut

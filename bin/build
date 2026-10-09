@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Build Dengaran ke public/: minify CSS dan JS, tag SEO, _headers, robots.txt, sitemap.xml, 404.html.
+#
+#   bin/build            jalankan scripts/build_public.py
+#
+# Hasilnya sama dengan build di Cloudflare Pages. Untuk melihatnya di browser: bin/dev --public
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+case "${1:-}" in
+  "") ;;
+  -h|--help)
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    echo "Argumen tidak dikenal: $1" >&2
+    echo "Pakai: bin/build" >&2
+    exit 1
+    ;;
+esac
+
+exec python3 "$ROOT/scripts/build_public.py"
