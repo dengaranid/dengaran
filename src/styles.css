@@ -714,57 +714,54 @@ kbd {
   outline: none;
 }
 
-/* Judul Favorit berisi tombol buka/tutup yang mengisi seluruh baris judul. */
-.group-title-toggle {
-  padding: 0;
+.panel-tabs-header {
+  padding: 0 12px;
 }
 
-.group-toggle {
+.panel-tabs {
   display: flex;
-  flex: 1;
-  align-items: center;
   gap: 4px;
-  min-height: 34px;
-  padding: 8px 18px;
+}
+
+.panel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 8px;
   border: 0;
-  color: inherit;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
   background: transparent;
   font: inherit;
-  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.group-toggle:hover {
+/* Di desktop, panel Baru diputar sudah selalu tampil di sisi kanan. */
+.panel-tab-history {
+  display: none;
+}
+
+.panel-tab:hover {
   color: var(--text);
 }
 
-.group-toggle:focus-visible {
+.panel-tab[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.panel-tab:focus-visible {
+  outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
 
-.group-toggle-icon {
-  flex: none;
-  margin-left: auto;
-  width: 16px;
-  height: 16px;
-  transition: transform 0.15s ease;
-}
-
-.group-toggle[aria-expanded="true"] .group-toggle-icon {
-  transform: rotate(180deg);
-}
-
-/* Grup tersembunyi (Favorit kosong) tetap ada di DOM. Tanpa :not([hidden]) judul grup
-   berikutnya mendapat garis atas yang menempel ke garis bawah header panel. */
-.group:not([hidden]) + .group .group-title {
-  /* Saat menempel, garis atas ini berdempetan dengan garis bawah header panel dan tampak
-     dobel. top: -1px menaruh garis itu tepat di luar area scroll, jadi terpotong overflow. */
-  top: -1px;
-  border-top: 1px solid var(--border);
-}
-
-/* Grup tertutup: garis atas judul grup berikutnya sudah jadi pemisah. */
-.group:has(> .list[hidden]) .group-title {
-  border-bottom: 0;
+.panel-scroll[hidden] {
+  display: none !important;
 }
 
 .list {
@@ -1235,6 +1232,11 @@ kbd {
   text-overflow: ellipsis;
 }
 
+/* Saat audio live berbunyi, teks "Sedang memutar." redundan dengan badge LIVE dan waktu. */
+.player-status:has(.live-badge:not([hidden])) #playerStatus {
+  display: none;
+}
+
 #playerStatus.error {
   color: var(--danger-soft);
 }
@@ -1695,14 +1697,23 @@ kbd {
     padding: 10px 12px;
   }
 
-  /* Satu panel tampil sekaligus; nav bawah memilih panelnya. */
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
+  /* Di mobile, tab Baru diputar ditampilkan di header panel utama */
+  .panel-tab-history {
+    display: inline-flex;
   }
 
-  .layout[data-view="radio"] #historySection,
-  .layout[data-view="history"] #radioSection {
+  .panel-tab {
+    padding: 0 6px;
+    font-size: 0.88rem;
+  }
+
+  /* Di mobile, section riwayat kolom desktop disembunyikan karena riwayat tampil di tab utama. */
+  #historySection {
     display: none;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   #radioSection {
@@ -1720,41 +1731,33 @@ kbd {
   }
 
   .toast {
-    bottom: calc(var(--player-h) + var(--mobile-nav-height) + 12px);
+    bottom: calc(var(--player-h) + 12px);
+  }
+}
+
+@media (max-width: 380px) {
+  .panel-tabs-header {
+    padding: 0 8px;
   }
 
-  .mobile-nav {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+  .panel-tab {
+    gap: 4px;
+    padding: 0 4px;
+    font-size: 0.8rem;
+  }
+
+  .player {
+    gap: 8px;
+    padding: 10px 8px;
+  }
+
+  .player-status {
     gap: 6px;
-    height: var(--mobile-nav-height);
-    /* Padding atas 9px + border 1px = 10px, sama dengan padding bawah. */
-    padding: 9px 12px 10px;
-    border-top: 1px solid var(--border);
-    background: rgba(20, 23, 26, 0.96);
+    font-size: 0.82rem;
   }
 
-  .mobile-nav button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 6px;
-    min-height: 38px;
-    border: 0;
-    color: var(--text);
-    background: rgba(37, 41, 46, 0.9);
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s ease;
-  }
-
-  .mobile-nav .icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .mobile-nav button[aria-pressed="true"] {
-    background: var(--primary-dark);
+  .player-controls {
+    gap: 4px;
   }
 }
 
@@ -1763,8 +1766,25 @@ kbd {
     grid-template-columns: 1fr;
   }
 
-  .mobile-nav button {
-    font-size: 0.85rem;
+  .panel-tab {
+    font-size: 0.74rem;
+    padding: 0 2px;
+  }
+
+  .player-status {
+    gap: 4px;
+    font-size: 0.76rem;
+  }
+
+  .live-badge {
+    gap: 4px;
+    font-size: 0.68rem;
+  }
+
+  .sleep-badge {
+    gap: 3px;
+    padding: 1px 4px;
+    font-size: 0.68rem;
   }
 }
 

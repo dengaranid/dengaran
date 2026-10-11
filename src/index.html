@@ -98,39 +98,64 @@
         </div>
       </form>
 
-      <main id="layout" class="layout" data-view="radio">
+      <main id="layout" class="layout" data-tab="radio">
         <section id="radioSection" class="section" aria-labelledby="radioHeading">
-          <div class="section-header">
-            <h2 id="radioHeading">Daftar Radio</h2>
+          <div class="section-header panel-tabs-header">
+            <div class="panel-tabs" role="tablist" aria-label="Pilihan daftar">
+              <button
+                id="tabRadio"
+                class="panel-tab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="radioScroll"
+              >
+                <span>Radio</span>
+                <span id="stationCount" class="count-badge"></span>
+              </button>
+              <button
+                id="tabFavorite"
+                class="panel-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="favoriteScroll"
+              >
+                <span>Favorit</span>
+                <span id="favoriteCount" class="count-badge"></span>
+              </button>
+              <button
+                id="tabHistory"
+                class="panel-tab panel-tab-history"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="historyScroll"
+              >
+                <span>Baru diputar</span>
+                <span id="historyTabCount" class="count-badge">0</span>
+              </button>
+            </div>
           </div>
 
-          <div id="radioScroll" class="panel-scroll" tabindex="-1">
-            <div id="favoriteGroup" class="group" hidden>
-              <h3 class="group-title group-title-toggle">
-                <button id="favoriteToggle" class="group-toggle" type="button" aria-expanded="false" aria-controls="favoriteList">
-                  <span>Favorit</span>
-                  <span id="favoriteCount" class="count-badge"></span>
-                  <svg class="icon group-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                </button>
-              </h3>
-              <div id="favoriteList" class="list" hidden></div>
+          <div id="radioScroll" class="panel-scroll" tabindex="-1" role="tabpanel" aria-labelledby="tabRadio">
+            <div id="stationList" class="list">
+              <div class="loading">Memuat daftar radio...</div>
             </div>
 
-            <div class="group">
-              <h3 id="resultsTitle" class="group-title" tabindex="-1">
-                <span id="resultsTitleText">Radio</span>
-                <span id="stationCount" class="count-badge"></span>
-              </h3>
-              <div id="stationList" class="list">
-                <div class="loading">Memuat daftar radio...</div>
-              </div>
-
-              <div class="list-footer">
-                <button id="loadMoreButton" class="btn" type="button" hidden>
-                  Muat lebih banyak
-                </button>
-              </div>
+            <div class="list-footer">
+              <button id="loadMoreButton" class="btn" type="button" hidden>
+                Muat lebih banyak
+              </button>
             </div>
+          </div>
+
+          <div id="favoriteScroll" class="panel-scroll" tabindex="-1" role="tabpanel" aria-labelledby="tabFavorite" hidden>
+            <div id="favoriteList" class="list"></div>
+          </div>
+
+          <div id="historyScroll" class="panel-scroll panel-scroll-history" tabindex="-1" role="tabpanel" aria-labelledby="tabHistory" hidden>
+            <ol id="historyList" class="row-list"></ol>
           </div>
         </section>
 
@@ -141,7 +166,7 @@
           </div>
 
           <div class="panel-scroll">
-            <ol id="historyList" class="row-list"></ol>
+            <ol id="historyListDesktop" class="row-list"></ol>
           </div>
         </section>
       </main>
@@ -153,9 +178,9 @@
           <p class="player-status">
             <span id="liveBadge" class="live-badge" hidden>LIVE</span>
             <span id="bufferBadge" class="buffer-badge" hidden>BUFFER</span>
-            <span id="sleepTimerBadge" class="sleep-badge" hidden></span>
             <span id="playerStatus" role="status" aria-live="polite">Pilih radio lalu tekan Putar.</span>
             <span id="listenTime" class="listen-time" aria-hidden="true" hidden>0:00</span>
+            <span id="sleepTimerBadge" class="sleep-badge" hidden></span>
           </p>
         </div>
 
@@ -213,15 +238,6 @@
         <!-- Satu elemen audio agar hanya satu stream aktif. Tanpa controls: kontrol ada di player. -->
         <audio id="audioPlayer" preload="none"></audio>
       </section>
-
-      <nav class="mobile-nav" aria-label="Navigasi mobile">
-        <button id="navSearchButton" type="button">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
-          Cari
-        </button>
-        <button type="button" data-view="radio" aria-pressed="true">Radio</button>
-        <button type="button" data-view="history" aria-pressed="false">Baru diputar</button>
-      </nav>
 
       <div id="toast" class="toast" role="status" aria-live="polite" hidden>
         <span id="toastIcon" class="toast-icon" aria-hidden="true" hidden></span>

@@ -144,13 +144,14 @@ const activeTagLabel = document.getElementById("activeTagLabel");
 const clearTagButton = document.getElementById("clearTagButton");
 const resultAnnouncer = document.getElementById("resultAnnouncer");
 const radioSection = document.getElementById("radioSection");
+const tabRadio = document.getElementById("tabRadio");
+const tabFavorite = document.getElementById("tabFavorite");
+const tabHistory = document.getElementById("tabHistory");
 const radioScroll = document.getElementById("radioScroll");
-const favoriteGroup = document.getElementById("favoriteGroup");
+const favoriteScroll = document.getElementById("favoriteScroll");
+const historyScroll = document.getElementById("historyScroll");
 const favoriteList = document.getElementById("favoriteList");
 const favoriteCount = document.getElementById("favoriteCount");
-const favoriteToggle = document.getElementById("favoriteToggle");
-const resultsTitle = document.getElementById("resultsTitle");
-const resultsTitleText = document.getElementById("resultsTitleText");
 const stationList = document.getElementById("stationList");
 const stationCount = document.getElementById("stationCount");
 const historySection = document.getElementById("historySection");
@@ -161,7 +162,9 @@ const shortcutOnText = document.getElementById("shortcutOnText");
 const shortcutOffText = document.getElementById("shortcutOffText");
 const shortcutToggle = document.getElementById("shortcutToggle");
 const historyList = document.getElementById("historyList");
+const historyListDesktop = document.getElementById("historyListDesktop");
 const historyCount = document.getElementById("historyCount");
+const historyTabCount = document.getElementById("historyTabCount");
 const loadMoreButton = document.getElementById("loadMoreButton");
 const audioPlayer = document.getElementById("audioPlayer");
 const miniPlayer = document.getElementById("miniPlayer");
@@ -185,16 +188,12 @@ const toast = document.getElementById("toast");
 const toastText = document.getElementById("toastText");
 const toastIcon = document.getElementById("toastIcon");
 const toastAction = document.getElementById("toastAction");
-const navSearchButton = document.getElementById("navSearchButton");
-const viewButtons = Array.from(document.querySelectorAll(".mobile-nav [data-view]"));
 
 const regionNames = createRegionNames();
 
 let stations = [];
 let favorites = loadStationList(FAVORITE_KEY);
-// Grup Favorit tertutup secara default dan terbuka saat ada kata pencarian atau genre.
-let favoritesExpanded = false;
-let favoriteFilterKey = "";
+let activeTab = "radio";
 let history = loadStationList(HISTORY_KEY).slice(0, HISTORY_LIMIT);
 let currentStation = null;
 let isPlaying = false;
@@ -298,13 +297,9 @@ volumeInput.addEventListener("input", () => {
   updateVolumeUI();
 });
 
-navSearchButton.addEventListener("click", () => {
-  setView("radio");
-  searchInput.focus();
-});
-viewButtons.forEach(button => {
-  button.addEventListener("click", () => setView(button.dataset.view));
-});
+tabRadio.addEventListener("click", () => setActiveTab("radio"));
+tabFavorite.addEventListener("click", () => setActiveTab("favorite"));
+tabHistory.addEventListener("click", () => setActiveTab("history"));
 
 toastAction.addEventListener("click", () => {
   const handler = toastActionHandler;
@@ -318,11 +313,9 @@ toast.addEventListener("mouseleave", resumeToast);
 toast.addEventListener("focusout", resumeToast);
 
 // Event delegation: satu listener untuk semua tombol kartu dan baris.
-[favoriteList, stationList, historyList].forEach(list => {
+[favoriteList, stationList, historyList, historyListDesktop].filter(Boolean).forEach(list => {
   list.addEventListener("click", handleCardAction);
 });
-
-favoriteToggle.addEventListener("click", () => setFavoritesExpanded(!favoritesExpanded));
 
 
 document.addEventListener("keydown", handleShortcut);
@@ -336,6 +329,7 @@ shortcutToggle.addEventListener("click", () => {
 setupDialogs();
 
 async function init() {
+  renderFavorites();
   renderHistory();
   restoreVolume();
   updateShortcutUI();
@@ -438,7 +432,6 @@ async function loadCountries() {
     countrySelect.value = DEFAULT_COUNTRY;
     startNewSearch();
   }
-  updateResultsTitle();
 }
 
 function selectedCountryName() {
@@ -479,7 +472,6 @@ async function loadStations({ append = false } = {}) {
   if (!append) {
     // Favorit ikut disaring kata pencarian dan genre, jadi dirender ulang di sini.
     renderFavorites();
-    updateResultsTitle();
     radioScroll.scrollTop = 0;
     stationList.innerHTML = `<div class="loading">Memuat daftar radio...</div>`;
     stationCount.textContent = "";
@@ -545,11 +537,10 @@ async function loadStations({ append = false } = {}) {
   if (append) {
     // Sisipkan kartu baru saja. Kartu lama tidak diganti, jadi fokus keyboard tetap.
     stations = stations.concat(newStations);
-    const added = newStations.filter(station => !isFavorite(station.id));
-    stationList.insertAdjacentHTML("beforeend", added.map(createStationCard).join(""));
+    stationList.insertAdjacentHTML("beforeend", newStations.map(createStationCard).join(""));
     updateStationCount();
     loadMoreButton.hidden = !hasMore;
-    announce(`${added.length} radio lagi dimuat.`);
+    announce(`${newStations.length} radio lagi dimuat.`);
   } else {
     stations = newStations;
     renderStations();
@@ -584,16 +575,9 @@ function visibleFavorites() {
   });
 }
 
-// Hasil pencarian tanpa stasiun yang sudah tampil di grup Favorit.
+// Hasil pencarian radio. Stasiun favorit tetap muncul di sini.
 function visibleResults() {
-  return stations.filter(station => !isFavorite(station.id));
-}
-
-function updateResultsTitle() {
-  const searchTerm = searchInput.value.trim();
-  resultsTitleText.textContent = searchTerm || activeTag
-    ? "Hasil pencarian"
-    : `Radio di ${selectedCountryName()}`;
+  return stations;
 }
 
 // ---------- Render ----------
@@ -607,7 +591,6 @@ function updateStationCount() {
 
 function renderStations() {
   const results = visibleResults();
-  updateResultsTitle();
 
   if (results.length === 0) {
     const searchTerm = searchInput.value.trim();
@@ -615,9 +598,7 @@ function renderStations() {
     if (searchTerm) filters.push(`bernama <strong>${escapeHtml(searchTerm)}</strong>`);
     if (activeTag) filters.push(`bergenre <strong>${escapeHtml(activeTag)}</strong>`);
 
-    if (stations.length > 0) {
-      stationList.innerHTML = `<div class="empty">Semua hasil sudah ada di Favorit.</div>`;
-    } else if (filters.length) {
+    if (filters.length) {
       stationList.innerHTML = `
         <div class="empty">
           Tidak ada radio ${filters.join(" dan ")} di ${escapeHtml(selectedCountryName())}.
@@ -641,37 +622,49 @@ function renderStations() {
   loadMoreButton.hidden = !hasMore;
 }
 
-function setFavoritesExpanded(expanded) {
-  favoritesExpanded = expanded;
-  favoriteToggle.setAttribute("aria-expanded", String(expanded));
-  favoriteList.hidden = !expanded;
+function setActiveTab(tab) {
+  activeTab = tab;
+  layout.dataset.tab = tab;
+  tabRadio.setAttribute("aria-selected", String(tab === "radio"));
+  tabFavorite.setAttribute("aria-selected", String(tab === "favorite"));
+  tabHistory.setAttribute("aria-selected", String(tab === "history"));
+  radioScroll.hidden = tab !== "radio";
+  favoriteScroll.hidden = tab !== "favorite";
+  if (historyScroll) historyScroll.hidden = tab !== "history";
+
+  if (tab === "radio") {
+    requestAnimationFrame(checkLoadMoreProximity);
+  }
 }
 
 function renderFavorites() {
-  // Status buka/tutup hanya disetel ulang saat kata pencarian atau genre berubah,
-  // jadi ganti negara, urutan, atau tambah favorit tidak menutup grup yang dibuka user.
-  const filterKey = `${searchInput.value.trim().toLowerCase()}\n${activeTag || ""}`;
-  if (filterKey !== favoriteFilterKey) {
-    favoriteFilterKey = filterKey;
-    setFavoritesExpanded(filterKey !== "\n");
-  }
-
   const list = visibleFavorites();
-  favoriteGroup.hidden = list.length === 0;
   favoriteCount.textContent = String(list.length);
-  favoriteList.innerHTML = list.map(createStationCard).join("");
-  updateStationCount();
-}
 
-function renderHistory() {
-  historyCount.textContent = String(history.length);
-
-  if (history.length === 0) {
-    historyList.innerHTML = `<li class="empty">Belum ada radio yang diputar.</li>`;
+  if (list.length === 0) {
+    const term = searchInput.value.trim();
+    if (term || activeTag) {
+      favoriteList.innerHTML = `<div class="empty">Tidak ada stasiun favorit yang cocok dengan filter pencarian.</div>`;
+    } else {
+      favoriteList.innerHTML = `<div class="empty">Belum ada radio favorit tersimpan. Tekan ikon hati pada radio yang ingin disimpan.</div>`;
+    }
     return;
   }
 
-  historyList.innerHTML = history.map(createHistoryRow).join("");
+  favoriteList.innerHTML = list.map(createStationCard).join("");
+}
+
+function renderHistory() {
+  const countStr = String(history.length);
+  historyCount.textContent = countStr;
+  if (historyTabCount) historyTabCount.textContent = countStr;
+
+  const html = history.length === 0
+    ? `<li class="empty">Belum ada radio yang diputar.</li>`
+    : history.map(createHistoryRow).join("");
+
+  if (historyList) historyList.innerHTML = html;
+  if (historyListDesktop) historyListDesktop.innerHTML = html;
   updateLayoutHeight();
 }
 
@@ -881,15 +874,6 @@ function handleCardAction(event) {
   }
 }
 
-// ---------- Navigasi mobile ----------
-
-function setView(view) {
-  layout.dataset.view = view;
-  viewButtons.forEach(button => {
-    button.setAttribute("aria-pressed", button.dataset.view === view ? "true" : "false");
-  });
-  if (view === "radio") requestAnimationFrame(checkLoadMoreProximity);
-}
 
 // ---------- Dialog Tentang dan Dukung ----------
 
@@ -1018,7 +1002,7 @@ function handleShortcut(event) {
 
   if (key === "/") {
     event.preventDefault();
-    setView("radio");
+    setActiveTab("radio");
     searchInput.focus();
     searchInput.select();
   } else if (key === "n" || key === "p") {
@@ -1034,11 +1018,25 @@ function handleShortcut(event) {
   }
 }
 
-// Urutan sama dengan yang terlihat di Daftar Radio: favorit dulu, lalu hasil.
+// Urutan navigasi keyboard mengikuti daftar yang sedang aktif dibuka.
 function playAdjacent(step) {
-  // Kartu di grup Favorit yang tertutup dilewati.
-  const cards = Array.from(radioScroll.querySelectorAll(".list:not([hidden]) .card[data-station-id]"));
-  const list = cards.map(card => findStationById(card.dataset.stationId)).filter(Boolean);
+  let list = [];
+  let activePanel = null;
+
+  if (activeTab === "favorite") {
+    activePanel = favoriteScroll;
+    const cards = Array.from(activePanel.querySelectorAll(".card[data-station-id]"));
+    list = cards.map(card => findStationById(card.dataset.stationId)).filter(Boolean);
+  } else if (activeTab === "history") {
+    activePanel = historyScroll || historySection;
+    const rows = Array.from((activePanel || historyList).querySelectorAll(".row[data-station-id]"));
+    list = rows.map(row => findStationById(row.dataset.stationId)).filter(Boolean);
+  } else {
+    activePanel = radioScroll;
+    const cards = Array.from(activePanel.querySelectorAll(".card[data-station-id]"));
+    list = cards.map(card => findStationById(card.dataset.stationId)).filter(Boolean);
+  }
+
   if (list.length === 0) return;
 
   const index = currentStation ? list.findIndex(station => station.id === currentStation.id) : -1;
@@ -1049,8 +1047,8 @@ function playAdjacent(step) {
 
   playStation(next);
 
-  const card = radioScroll.querySelector(`[data-station-id="${cssEscape(next.id)}"]`);
-  if (card) card.scrollIntoView({ block: "nearest" });
+  const el = activePanel.querySelector(`[data-station-id="${cssEscape(next.id)}"]`);
+  if (el) el.scrollIntoView({ block: "nearest" });
 }
 
 // ---------- Pemutaran ----------
@@ -1776,35 +1774,14 @@ function clearMediaSession() {
 
 // ---------- Favorit ----------
 
-// Stasiun pindah dari hasil pencarian ke grup Favorit di atas daftar,
-// jadi tidak tampil dua kali.
 function addFavorite(stationId, sourceButton) {
   const station = findStationById(stationId);
   if (!station || isFavorite(station.id)) return;
 
-  const fromResults = Boolean(sourceButton && stationList.contains(sourceButton));
-
   favorites.unshift(station);
-  saveJson(FAVORITE_KEY, favorites);
-  renderFavorites();
-  // Kartu dipindah ke grup Favorit, jadi grup dibuka supaya kartu dan fokusnya terlihat.
-  setFavoritesExpanded(true);
+  refreshFavoriteViews();
 
-  const resultCard = stationList.querySelector(`[data-station-id="${cssEscape(station.id)}"]`);
-  if (resultCard) resultCard.remove();
-  if (!stationList.querySelector(".card, .loading")) renderStations();
-  updateStationCount();
-  updateFavoriteButtons();
-
-  // Tombol yang diklik ikut pindah: fokus ke tombol hati kartu yang sama di grup Favorit.
-  if (fromResults) {
-    const heart = favoriteList.querySelector(
-      `[data-action="toggle-favorite"][data-id="${cssEscape(station.id)}"]`
-    );
-    if (heart) heart.focus({ preventScroll: true });
-  }
-
-  showToast("dipindah ke Favorit di atas daftar.", {
+  showToast("ditambahkan ke Favorit.", {
     strong: station.name,
     icon: "heart",
     tone: "favorite"
@@ -1822,8 +1799,8 @@ function removeFavorite(stationId, sourceButton) {
   favorites.splice(index, 1);
   refreshFavoriteViews();
 
-  // Tombol yang diklik ikut hilang saat grup di-render ulang:
-  // pindahkan fokus ke kartu favorit di posisi yang sama, atau ke judul hasil.
+  // Tombol yang diklik di tab favorit ikut hilang:
+  // pindahkan fokus ke kartu favorit di posisi yang sama, atau ke tab favorit.
   if (visibleIndex !== -1) focusFavoriteAt(visibleIndex);
 
   showToast("dihapus dari favorit.", {
@@ -1846,14 +1823,13 @@ function removeFavorite(stationId, sourceButton) {
 function refreshFavoriteViews() {
   saveJson(FAVORITE_KEY, favorites);
   renderFavorites();
-  renderStations();
   updateFavoriteButtons();
 }
 
 function focusFavoriteAt(index) {
   const hearts = favoriteList.querySelectorAll('[data-action="toggle-favorite"]');
   const target = hearts[Math.min(index, hearts.length - 1)];
-  (target || resultsTitle).focus({ preventScroll: Boolean(target) });
+  (target || tabFavorite).focus({ preventScroll: Boolean(target) });
 }
 
 function findStationById(stationId) {
@@ -1934,8 +1910,14 @@ function updateLayoutHeight() {
   // Panel tersembunyi (mobile): ukurannya 0, jangan timpa nilai terakhir.
   if (!header || header.offsetHeight === 0) return;
 
-  const row = historyList.querySelector(".row");
-  const rowHeight = row ? row.getBoundingClientRect().height : 61;
+  // Di desktop, tab history disembunyikan. Jika sedang dalam state history, kembalikan ke radio.
+  if (activeTab === "history") {
+    setActiveTab("radio");
+  }
+
+  const row = (historyListDesktop && historyListDesktop.querySelector(".row")) || historyList.querySelector(".row");
+  const measuredHeight = row ? row.getBoundingClientRect().height : 0;
+  const rowHeight = measuredHeight > 0 ? measuredHeight : 61;
   const headerHeight = header.getBoundingClientRect().height;
 
   const appStyle = getComputedStyle(appShell);
