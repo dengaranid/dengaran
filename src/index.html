@@ -153,6 +153,7 @@
           <p class="player-status">
             <span id="liveBadge" class="live-badge" hidden>LIVE</span>
             <span id="bufferBadge" class="buffer-badge" hidden>BUFFER</span>
+            <span id="sleepTimerBadge" class="sleep-badge" hidden></span>
             <span id="playerStatus" role="status" aria-live="polite">Pilih radio lalu tekan Putar.</span>
             <span id="listenTime" class="listen-time" aria-hidden="true" hidden>0:00</span>
           </p>
@@ -176,6 +177,15 @@
             aria-label="Putar"
             disabled
           ></button>
+
+          <button
+            id="sleepTimerButton"
+            class="icon-btn is-plain"
+            type="button"
+            title="Pengatur waktu tidur"
+            aria-label="Pengatur waktu tidur"
+            data-open-dialog="sleepDialog"
+          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
 
           <button
             id="closePlayerButton"
@@ -232,6 +242,39 @@
 
     <p id="resultAnnouncer" class="visually-hidden" role="status" aria-live="polite"></p>
   </div>
+
+  <dialog id="sleepDialog" class="dialog" aria-labelledby="sleepTitle">
+    <div class="dialog-header">
+      <h2 id="sleepTitle">Pengatur Waktu Tidur</h2>
+      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="dialog-body">
+      <p class="dialog-intro">
+        Pilih durasi sebelum pemutaran dihentikan secara otomatis. Volume akan diturunkan bertahap dalam 5 detik terakhir.
+      </p>
+      <div id="sleepTimerOptions" class="sleep-options" role="radiogroup" aria-labelledby="sleepTitle">
+        <button class="sleep-option is-active" type="button" role="radio" aria-checked="true" data-sleep-minutes="0">
+          <span class="sleep-option-label">Mati</span>
+          <span class="sleep-option-status">Nonaktif</span>
+        </button>
+        <button class="sleep-option" type="button" role="radio" aria-checked="false" data-sleep-minutes="15">
+          <span class="sleep-option-label">15 menit</span>
+        </button>
+        <button class="sleep-option" type="button" role="radio" aria-checked="false" data-sleep-minutes="30">
+          <span class="sleep-option-label">30 menit</span>
+        </button>
+        <button class="sleep-option" type="button" role="radio" aria-checked="false" data-sleep-minutes="45">
+          <span class="sleep-option-label">45 menit</span>
+        </button>
+        <button class="sleep-option" type="button" role="radio" aria-checked="false" data-sleep-minutes="60">
+          <span class="sleep-option-label">60 menit</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="supportDialog" class="dialog" aria-labelledby="supportTitle">
     <div class="dialog-header">

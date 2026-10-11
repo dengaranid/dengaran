@@ -260,7 +260,8 @@ kbd {
   font-weight: 600;
 }
 
-#supportDialog {
+#supportDialog,
+#sleepDialog {
   width: min(460px, calc(100vw - 32px));
 }
 
@@ -1290,6 +1291,77 @@ kbd {
   background: var(--warning);
 }
 
+/* SLEEP: indikator waktu tidur aktif di samping player-status. */
+.sleep-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  border: 1px solid rgba(143, 166, 185, 0.35);
+  color: var(--primary);
+  background: rgba(143, 166, 185, 0.12);
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.sleep-badge .icon {
+  width: 12px;
+  height: 12px;
+}
+
+#sleepTimerButton.is-active {
+  color: var(--primary);
+  border-color: rgba(143, 166, 185, 0.5);
+  background: rgba(143, 166, 185, 0.14);
+}
+
+.sleep-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.sleep-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--panel-soft);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sleep-option:hover {
+  border-color: rgba(143, 166, 185, 0.45);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sleep-option.is-active {
+  border-color: var(--primary);
+  color: var(--on-accent);
+  background: rgba(79, 102, 120, 0.35);
+}
+
+.sleep-option-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sleep-option.is-active .sleep-option-status {
+  color: var(--primary);
+}
+
 .listen-time {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -1574,7 +1646,8 @@ kbd {
     border: 0;
   }
 
-  #supportDialog {
+  #supportDialog,
+  #sleepDialog {
     width: calc(100vw - 32px);
     max-width: 440px;
     height: fit-content;

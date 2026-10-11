@@ -112,7 +112,8 @@ const ICONS = {
   volumeLow: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
   volumeOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>',
   heartOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4.893a5.5 5.5 0 0 1 1.091.931.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 1.872-1.002 3.356-2.187 4.655"/><path d="m16.967 16.967-3.459 3.346a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 2.747-4.761"/><path d="m2 2 20 20"/></svg>',
-  wifiOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>'
+  wifiOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>',
+  timer: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
 };
 
 const NOW_DOT_HTML = '<span class="now-dot" aria-hidden="true"></span>';
@@ -168,10 +169,14 @@ const nowPlaying = document.getElementById("nowPlaying");
 const playerStatus = document.getElementById("playerStatus");
 const liveBadge = document.getElementById("liveBadge");
 const bufferBadge = document.getElementById("bufferBadge");
+const sleepTimerBadge = document.getElementById("sleepTimerBadge");
 const listenTime = document.getElementById("listenTime");
 const retryButton = document.getElementById("retryButton");
 const miniPlayButton = document.getElementById("miniPlayButton");
+const sleepTimerButton = document.getElementById("sleepTimerButton");
 const closePlayerButton = document.getElementById("closePlayerButton");
+const sleepDialog = document.getElementById("sleepDialog");
+const sleepTimerOptions = document.getElementById("sleepTimerOptions");
 const muteButton = document.getElementById("muteButton");
 const volumeInput = document.getElementById("volumeInput");
 const volumeValue = document.getElementById("volumeValue");
@@ -231,6 +236,12 @@ let toastRemaining = 0;
 let toastStartedAt = 0;
 let toastPaused = false;
 let toastActionHandler = null;
+// State pengatur waktu tidur (Sleep Timer)
+let sleepTimerMinutes = 0;
+let sleepTimerEnd = null;
+let sleepTimerTicker = null;
+let sleepFadeTicker = null;
+let sleepOriginalVolume = null;
 // Pintasan satu huruf bisa dimatikan (WCAG 2.1.4). Nilai selain false dianggap aktif.
 let shortcutsEnabled = loadJson(SHORTCUTS_KEY, true) !== false;
 
@@ -267,6 +278,15 @@ window.addEventListener("online", handleOnline);
 
 miniPlayButton.addEventListener("click", handleMiniPlayButton);
 closePlayerButton.addEventListener("click", closePlayer);
+if (sleepTimerOptions) {
+  sleepTimerOptions.addEventListener("click", event => {
+    const btn = event.target.closest(".sleep-option");
+    if (!btn) return;
+    const minutes = Number(btn.dataset.sleepMinutes || 0);
+    setSleepTimer(minutes);
+    if (sleepDialog && sleepDialog.open) sleepDialog.close();
+  });
+}
 retryButton.addEventListener("click", () => {
   if (currentStation) playStation(currentStation);
 });
@@ -1386,6 +1406,7 @@ function stopPlayback(message) {
 function closePlayer() {
   abortStream();
   cancelReconnect();
+  cancelSleepTimer();
   currentStation = null;
   isPlaying = false;
   isConnecting = false;
@@ -1569,6 +1590,122 @@ function restoreVolume() {
   audioPlayer.volume = safeVolume;
   volumeInput.value = String(safeVolume);
   updateVolumeUI();
+}
+
+// ---------- Pengatur Waktu Tidur (Sleep Timer) ----------
+
+function setSleepTimer(minutes) {
+  cancelSleepTimer();
+
+  if (minutes <= 0) {
+    sleepTimerMinutes = 0;
+    updateSleepTimerUI();
+    showToast("Pengatur waktu tidur dimatikan.", { icon: "timer" });
+    return;
+  }
+
+  sleepTimerMinutes = minutes;
+  sleepTimerEnd = Date.now() + minutes * 60 * 1000;
+  updateSleepTimerUI();
+  showToast(`Waktu tidur diatur: ${minutes} menit.`, { icon: "timer" });
+
+  sleepTimerTicker = setInterval(tickSleepTimer, 1000);
+  tickSleepTimer();
+}
+
+function cancelSleepTimer() {
+  clearInterval(sleepTimerTicker);
+  clearInterval(sleepFadeTicker);
+  sleepTimerTicker = null;
+  sleepFadeTicker = null;
+
+  if (sleepOriginalVolume !== null) {
+    audioPlayer.volume = sleepOriginalVolume;
+    sleepOriginalVolume = null;
+    updateVolumeUI();
+  }
+
+  sleepTimerMinutes = 0;
+  sleepTimerEnd = null;
+  updateSleepTimerUI();
+}
+
+function tickSleepTimer() {
+  if (!sleepTimerEnd) return;
+
+  const remainingMs = sleepTimerEnd - Date.now();
+  if (remainingMs <= 0) {
+    clearInterval(sleepTimerTicker);
+    sleepTimerTicker = null;
+    finishSleepTimer();
+    return;
+  }
+
+  const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+  sleepTimerBadge.innerHTML = `${ICONS.timer} ${formatTime(remainingSecs)}`;
+
+  // Fade out 5 detik sebelum waktu habis saat audio sedang berbunyi
+  if (remainingMs <= 5000 && !sleepFadeTicker && (isPlaying || streamAttached)) {
+    startSleepFadeOut();
+  }
+}
+
+function startSleepFadeOut() {
+  if (sleepFadeTicker) return;
+  sleepOriginalVolume = audioPlayer.volume;
+  const startVol = audioPlayer.volume;
+  const fadeStart = Date.now();
+  const fadeDuration = 5000;
+
+  sleepFadeTicker = setInterval(() => {
+    const elapsed = Date.now() - fadeStart;
+    const progress = Math.min(1, elapsed / fadeDuration);
+    audioPlayer.volume = Math.max(0, startVol * (1 - progress));
+    updateVolumeUI();
+
+    if (progress >= 1) {
+      clearInterval(sleepFadeTicker);
+      sleepFadeTicker = null;
+    }
+  }, 100);
+}
+
+function finishSleepTimer() {
+  stopPlayback("Waktu tidur selesai.");
+  showToast("Waktu tidur selesai. Pemutaran dihentikan.", { icon: "timer" });
+  cancelSleepTimer();
+}
+
+function updateSleepTimerUI() {
+  const isActive = sleepTimerMinutes > 0 && sleepTimerEnd !== null;
+  sleepTimerBadge.hidden = !isActive;
+  sleepTimerButton.classList.toggle("is-active", isActive);
+
+  if (!isActive) {
+    sleepTimerBadge.textContent = "";
+  }
+
+  if (sleepTimerOptions) {
+    sleepTimerOptions.querySelectorAll(".sleep-option").forEach(btn => {
+      const mins = Number(btn.dataset.sleepMinutes || 0);
+      const isSelected = mins === sleepTimerMinutes;
+      btn.classList.toggle("is-active", isSelected);
+      btn.setAttribute("aria-checked", String(isSelected));
+      let statusEl = btn.querySelector(".sleep-option-status");
+      if (isSelected && mins > 0) {
+        if (!statusEl) {
+          statusEl = document.createElement("span");
+          statusEl.className = "sleep-option-status";
+          btn.appendChild(statusEl);
+        }
+        statusEl.textContent = "Aktif";
+      } else if (mins === 0) {
+        if (statusEl) statusEl.textContent = isSelected ? "Nonaktif" : "";
+      } else if (statusEl) {
+        statusEl.remove();
+      }
+    });
+  }
 }
 
 // ---------- Media Session (lock screen / notifikasi HP) ----------

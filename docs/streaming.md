@@ -192,7 +192,14 @@ Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpo
 
 - `abortStream` melepas stream: naikkan `playRequestId`, hapus timer, `detachStream` (hancurkan instance hls.js), pause, hapus `src`, lalu `load()`.
 - `stopPlayback` memanggil `abortStream` dan `cancelReconnect`, lalu set Media Session ke `paused` dan mengosongkan status posisi. Stasiun tetap di player.
-- `closePlayer` melakukan hal yang sama, lalu menghapus stasiun dari player, menghapus `LAST_STATION_KEY`, dan mengosongkan Media Session.
+- `closePlayer` melakukan hal yang sama, membatalkan pengatur waktu tidur (`cancelSleepTimer`), lalu menghapus stasiun dari player, menghapus `LAST_STATION_KEY`, dan mengosongkan Media Session.
+
+## Pengatur waktu tidur (Sleep Timer)
+
+Fitur pengatur waktu tidur (`setSleepTimer`, `cancelSleepTimer`, `startSleepFadeOut`, `finishSleepTimer`) memungkinkan pengguna mengatur waktu penghentian siaran (pilihan: Mati, 15m, 30m, 45m, 60m):
+- Saat aktif, indikator sisa waktu tidur tampil pada badge di player status (`#sleepTimerBadge`) dan ikon tombol timer disorot aktif.
+- Pada 5 detik terakhir sebelum waktu tidur berakhir, `startSleepFadeOut` menurunkan volume audio secara bertahap dari level semula ke 0 selama 5 detik.
+- Saat timer habis, `finishSleepTimer` memanggil `stopPlayback("Waktu tidur selesai.")`, menampilkan toast informasi, lalu mengembalikan volume audio ke setelan semula sehingga pemutaran berikutnya tidak terbisukan.
 
 ## Media Session
 
