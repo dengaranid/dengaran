@@ -186,12 +186,12 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 | stream `http:` di halaman HTTPS | Stream HTTP diblokir browser di halaman HTTPS. | tampil |
 | selain itu | Stasiun mungkin sedang offline. | tampil |
 
-Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya.
+Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Selain tombol di mini player, jika kesalahan bukan format yang tidak didukung (`UnsupportedCodec`), `showToast` juga memunculkan toast notifikasi berisi aksi tombol "Coba lagi" yang langsung mencoba memutar stasiun kembali.
 
 ## Stop dan tutup player
 
 - `abortStream` melepas stream: naikkan `playRequestId`, hapus timer, `detachStream` (hancurkan instance hls.js), pause, hapus `src`, lalu `load()`.
-- `stopPlayback` memanggil `abortStream` dan `cancelReconnect`, lalu set Media Session ke `paused`. Stasiun tetap di player.
+- `stopPlayback` memanggil `abortStream` dan `cancelReconnect`, lalu set Media Session ke `paused` dan mengosongkan status posisi. Stasiun tetap di player.
 - `closePlayer` melakukan hal yang sama, lalu menghapus stasiun dari player, menghapus `LAST_STATION_KEY`, dan mengosongkan Media Session.
 
 ## Media Session
@@ -205,6 +205,8 @@ Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpo
 | `nexttrack`, `previoustrack` | `playAdjacent(1)` dan `playAdjacent(-1)` |
 
 `setMediaAction` membungkus `setActionHandler` dengan `try`, karena browser lama melempar error untuk action yang tidak didukungnya.
+
+Selain metadata dan action, `updateMediaSessionPosition` memperbarui `navigator.mediaSession.setPositionState` secara berkala selama pemutaran berlangsung (menggunakan `listenSeconds`) agar durasi mendengar dan status live dapat tercermin pada lock screen dan notifikasi sistem operasi yang mendukungnya.
 
 ## HTTPS dan CSP
 

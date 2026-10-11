@@ -1270,6 +1270,26 @@ kbd {
   background: var(--success);
 }
 
+/* BUFFER: titik amber statis dan teks saat audio menunggu data atau buffering. */
+.buffer-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.buffer-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
 .listen-time {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;

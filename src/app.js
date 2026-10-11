@@ -167,6 +167,7 @@ const miniPlayer = document.getElementById("miniPlayer");
 const nowPlaying = document.getElementById("nowPlaying");
 const playerStatus = document.getElementById("playerStatus");
 const liveBadge = document.getElementById("liveBadge");
+const bufferBadge = document.getElementById("bufferBadge");
 const listenTime = document.getElementById("listenTime");
 const retryButton = document.getElementById("retryButton");
 const miniPlayButton = document.getElementById("miniPlayButton");
@@ -827,6 +828,7 @@ function updatePlaybackUI() {
   miniPlayer.classList.toggle("is-empty", !hasStation);
   // LIVE hanya saat audio benar-benar mengalir, tidak saat buffering.
   liveBadge.hidden = !(isPlaying && !isBuffering);
+  bufferBadge.hidden = !(hasStation && (isBuffering || (isConnecting && reconnectAttempt > 0)));
   listenTime.hidden = !(isPlaying && !isBuffering);
 }
 
@@ -1377,6 +1379,7 @@ function stopPlayback(message) {
   retryButton.hidden = true;
   showStatus(message);
   setMediaPlaybackState("paused");
+  updateMediaSessionPosition();
   updatePlaybackUI();
 }
 
@@ -1413,7 +1416,15 @@ function markStreamFailed(station, error) {
   const unsupported = Boolean(error && error.name === "UnsupportedCodec");
   // Format yang tidak didukung tidak berubah dengan mencoba lagi.
   retryButton.hidden = unsupported;
-  showStatus(streamFailureMessage(station, error), true);
+  const failureMsg = streamFailureMessage(station, error);
+  showStatus(failureMsg, true);
+  if (!unsupported) {
+    showToast(failureMsg, {
+      icon: "wifiOff",
+      actionLabel: "Coba lagi",
+      onAction: () => playStation(station)
+    });
+  }
   setMediaPlaybackState("none");
   updatePlaybackUI();
 }
@@ -1465,6 +1476,7 @@ function handleAudioWaiting() {
   bufferingStartTime = audioPlayer.currentTime;
   showStatus("Menunggu data stream...");
   stallTimer = failAfter(STALL_TIMEOUT_MS, currentStation, playRequestId);
+  updateMediaSessionPosition();
   updatePlaybackUI();
 }
 
@@ -1488,6 +1500,10 @@ function handleAudioTimeUpdate() {
   lastMediaTime = now;
   if (reconnectAttempt > 0 && streamSeconds >= RECONNECT_RESET_SECONDS) reconnectAttempt = 0;
   listenTime.textContent = formatTime(listenSeconds);
+  // Update posisi media session tiap beberapa detik
+  if (Math.floor(listenSeconds) % 5 === 0) {
+    updateMediaSessionPosition();
+  }
 }
 
 function handleAudioPlaying() {
@@ -1500,6 +1516,7 @@ function handleAudioPlaying() {
   retryButton.hidden = true;
   showStatus("Sedang memutar.");
   setMediaPlaybackState("playing");
+  updateMediaSessionPosition();
   updatePlaybackUI();
 }
 
@@ -1573,6 +1590,7 @@ function setMediaSession(station) {
   setMediaAction("nexttrack", () => playAdjacent(1));
   setMediaAction("previoustrack", () => playAdjacent(-1));
   setMediaPlaybackState("playing");
+  updateMediaSessionPosition();
 }
 
 // Browser lama melempar error untuk action yang tidak didukung.
@@ -1590,10 +1608,32 @@ function setMediaPlaybackState(state) {
   }
 }
 
+function updateMediaSessionPosition() {
+  if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function") return;
+  try {
+    if (isPlaying && !isBuffering && listenSeconds > 0) {
+      navigator.mediaSession.setPositionState({
+        duration: Math.max(listenSeconds, 1),
+        playbackRate: 1,
+        position: Math.max(listenSeconds, 0)
+      });
+    } else {
+      navigator.mediaSession.setPositionState(null);
+    }
+  } catch (error) {
+    // Format durasi tidak didukung atau status posisi live diabaikan oleh browser.
+  }
+}
+
 function clearMediaSession() {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = null;
     navigator.mediaSession.playbackState = "none";
+    try {
+      if (typeof navigator.mediaSession.setPositionState === "function") {
+        navigator.mediaSession.setPositionState(null);
+      }
+    } catch (error) {}
   }
 }
 
