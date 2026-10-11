@@ -52,6 +52,11 @@ const STALL_TIMEOUT_MS = 15000;
 // Jeda sebelum tiap percobaan menyambung ulang stream yang putus saat sedang diputar.
 // Sesudah percobaan terakhir gagal, stream dinyatakan gagal seperti biasa.
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+// Jeda debounce saat perangkat kembali online sebelum menyambung ulang, untuk memberi waktu
+// rute jaringan dan DNS stabil terlebih dahulu.
+const ONLINE_RECONNECT_DELAY_MS = 1000;
+// Batas waktu fetch untuk mengekstrak URL audio dari playlist .pls atau .m3u
+const PLAYLIST_RESOLVE_TIMEOUT_MS = 4000;
 // Jumlah percobaan baru dikembalikan ke 0 sesudah stream hasil sambung ulang berbunyi selama ini.
 // Tanpa batas ini, server yang memutus koneksi tiap beberapa detik disambung ulang tanpa henti.
 const RECONNECT_RESET_SECONDS = 10;
@@ -71,7 +76,7 @@ const HLS_CONFIG = {
   liveMaxLatencyDurationCount: 6,
   // Batasi buffer di depan dan di belakang posisi putar supaya kuota dan memori tidak terpakai
   // untuk audio yang tidak akan didengar. Pemilihan bitrate (ABR) memakai default hls.js.
-  maxBufferLength: 10,
+  maxBufferLength: 15,
   backBufferLength: 10
 };
 const FAVORITE_KEY = "radio_online_favorites_v1";
@@ -215,6 +220,7 @@ let lastMediaTime = null;
 // Jumlah percobaan sambung ulang yang sudah dijalankan. 0 berarti tidak sedang menyambung ulang.
 let reconnectAttempt = 0;
 let reconnectTimer = null;
+let onlineTimer = null;
 // True saat percobaan berikutnya ditahan sampai browser melaporkan jaringan tersambung.
 let waitingForNetwork = false;
 const failedStations = new Set();
@@ -1146,6 +1152,60 @@ function isHlsStation(station) {
   return station.hls === true || /\.m3u8(\?|$)/i.test(station.url);
 }
 
+// Format playlist audio (.pls atau .m3u biasa non-HLS) sering berisi URL stream audio langsung.
+function isPlaylistUrl(url) {
+  return /\.(pls|m3u)(\?|$)/i.test(url);
+}
+
+function parsePlsPlaylist(content) {
+  const lines = content.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const match = line.match(/^File\d+=(https?:\/\/.+)/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return null;
+}
+
+function parseM3uPlaylist(content) {
+  const lines = content.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line && !line.startsWith("#") && /^https?:\/\//i.test(line)) {
+      return line;
+    }
+  }
+  return null;
+}
+
+// Unduh isi playlist dan ekstrak URL stream audio langsung jika tersedia.
+// Jika CORS memblokir atau format tidak valid, kembalikan URL asli sebagai fallback.
+async function resolvePlaylistUrl(url, requestId) {
+  if (!isPlaylistUrl(url)) return url;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PLAYLIST_RESOLVE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return url;
+    if (requestId !== playRequestId) return url;
+
+    const text = await response.text();
+    if (requestId !== playRequestId) return url;
+
+    const isPls = /\.pls(\?|$)/i.test(url);
+    const resolved = isPls ? parsePlsPlaylist(text) : parseM3uPlaylist(text);
+    return resolved || url;
+  } catch (error) {
+    return url;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Pasang stream ke elemen audio. Mengganti stream otomatis menghentikan yang sebelumnya.
 // HLS diputar lewat hls.js (Media Source Extensions) kalau browser tidak memutarnya sendiri,
 // misalnya Firefox. Safari dan stream Icecast/MP3 biasa langsung lewat elemen audio.
@@ -1176,7 +1236,9 @@ async function attachStream(station, requestId) {
     // Error fatal yang dikirim sinkron di atas sudah melepas stream ini.
     if (requestId !== playRequestId) return;
   } else {
-    audioPlayer.src = station.url;
+    const resolvedUrl = await resolvePlaylistUrl(station.url, requestId);
+    if (requestId !== playRequestId) return;
+    audioPlayer.src = resolvedUrl;
     audioPlayer.load();
   }
   streamAttached = true;
@@ -1246,13 +1308,17 @@ function abortStream() {
 function handleStreamFailure(station, error) {
   const wasStreaming = isPlaying || reconnectAttempt > 0;
   const blocked = error && error.name === "NotAllowedError";
-  abortStream();
 
   if (wasStreaming && !blocked && reconnectAttempt < RECONNECT_DELAYS_MS.length) {
+    // Jangan bunuh elemen audio jika audio masih berbunyi dari buffer lokal.
+    // Matikan timer koneksi/stall, namun biarkan sisa buffer berbunyi hingga
+    // sambung ulang berikutnya siap memasang stream baru.
+    clearStreamTimers();
     scheduleReconnect(station);
     return;
   }
 
+  abortStream();
   const lostAfterRetry = reconnectAttempt > 0 && !blocked;
   cancelReconnect();
   markStreamFailed(station, lostAfterRetry ? { name: "ConnectionLost" } : error);
@@ -1282,13 +1348,22 @@ function runReconnect(station) {
 
 function handleOnline() {
   if (!waitingForNetwork || !currentStation) return;
-  waitingForNetwork = false;
-  runReconnect(currentStation);
+  // Beri jeda debounce agar koneksi jaringan dan rute DNS stabil sebelum mencoba lagi.
+  clearTimeout(onlineTimer);
+  showStatus("Jaringan terdeteksi kembali. Menyiapkan sambung ulang...");
+  onlineTimer = setTimeout(() => {
+    onlineTimer = null;
+    if (!waitingForNetwork || !currentStation) return;
+    waitingForNetwork = false;
+    runReconnect(currentStation);
+  }, ONLINE_RECONNECT_DELAY_MS);
 }
 
 function cancelReconnect() {
   clearTimeout(reconnectTimer);
+  clearTimeout(onlineTimer);
   reconnectTimer = null;
+  onlineTimer = null;
   reconnectAttempt = 0;
   waitingForNetwork = false;
 }

@@ -13,6 +13,7 @@ Akibatnya, format, codec, dan bitrate ditentukan oleh stasiun. Satu stasiun di R
 | Jenis | Contoh | Cara diputar |
 |---|---|---|
 | Stream HTTP biasa (Icecast, Shoutcast) | MP3, AAC, Ogg | langsung oleh elemen `<audio>` |
+| Playlist audio (.pls, .m3u non-HLS) | File playlist teks | diekstrak via `resolvePlaylistUrl`, stream audio diputar `<audio>` |
 | HLS | URL `.m3u8`, atau `hls = 1` di data Radio Browser | `<audio>` di Safari, hls.js di browser lain |
 
 ## Elemen audio dan state
@@ -30,6 +31,7 @@ State pemutaran disimpan di variabel modul:
 | `streamAttached` | ada stream yang terpasang ke elemen audio |
 | `playRequestId` | nomor urut permintaan putar, lihat bagian berikut |
 | `reconnectAttempt` | jumlah percobaan sambung ulang yang sudah dijalankan |
+| `onlineTimer` | timer debounce penundaan sambung ulang saat jaringan kembali online |
 | `waitingForNetwork` | sambung ulang ditahan karena perangkat offline |
 
 Tombol putar hanya punya empat tampilan (`PLAY_STATES`): `idle`, `stopped`, `connecting`, dan `playing`. Tidak ada tombol jeda. Siaran live tidak bisa dilanjutkan dari posisi lama, jadi Putar selalu memuat ulang stream dan mulai dari siaran yang sedang berjalan.
@@ -74,9 +76,11 @@ Langkah `playStation` secara berurutan:
 | Kondisi | Jalur |
 |---|---|
 | `isHlsStation` dan `canPlayType("application/vnd.apple.mpegurl")` kosong | hls.js dengan Media Source Extensions |
-| selain itu | `audioPlayer.src = station.url` |
+| selain itu | `audioPlayer.src = resolvedUrl` (ekstraksi playlist jika `.pls` / `.m3u`) |
 
 `isHlsStation` membaca `station.hls` dari Radio Browser. Favorit yang disimpan sebelum field itu ada dikenali dari URL yang berakhir `.m3u8`.
+
+Pada URL playlist audio biasa (`.pls` atau `.m3u`), `resolvePlaylistUrl` mengunduh teks playlist dengan batas waktu `PLAYLIST_RESOLVE_TIMEOUT_MS` (4000 ms). Fungsi `parsePlsPlaylist` mengekstrak URL dari baris `File1=...`, sedangkan `parseM3uPlaylist` mengambil baris URL audio pertama non-komentar. Jika respons diblokir CORS atau format tidak valid, URL stasiun asli digunakan sebagai fallback.
 
 Pada jalur hls.js, stream sebelumnya dihentikan dulu supaya tidak tetap terdengar selama hls.js diunduh. `loadHls` memuat `HLS_SCRIPT` sekali dan memakai ulang promise-nya. Kalau script gagal dimuat, promise dihapus supaya percobaan berikutnya memuat ulang. Kalau `Hls.isSupported()` false (browser tanpa Media Source Extensions), `attachStream` melempar error dan stream gagal.
 
@@ -90,7 +94,7 @@ Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal diteru
 | `liveSyncDurationCount` | `3` | Mulai 3 segmen di belakang ujung playlist live, batas minimum spesifikasi HLS. |
 | `maxLiveSyncPlaybackRate` | `1.05` | Tertinggal 3 sampai 6 segmen: putar sampai 1.05x sampai kembali ke posisi live. Pitch tetap karena `preservesPitch` elemen audio aktif secara default. |
 | `liveMaxLatencyDurationCount` | `6` | Tertinggal lebih dari 6 segmen: seek langsung ke posisi live. |
-| `maxBufferLength` | `10` | Batas buffer di depan posisi putar, dalam detik. |
+| `maxBufferLength` | `15` | Batas buffer di depan posisi putar, dalam detik (ditingkatkan untuk stabilitas jaringan fluktuatif). |
 | `backBufferLength` | `10` | Batas buffer di belakang posisi putar, dalam detik. |
 
 Pemilihan bitrate (ABR) memakai default hls.js. ABR hanya berlaku kalau playlist stasiun menyediakan lebih dari satu bitrate.
@@ -116,6 +120,8 @@ Ada browser yang menyatakan bisa memutar AAC padahal tidak. Kasus itu baru terde
 |---|---|---|
 | `CONNECT_TIMEOUT_MS` | 12000 | dari `playStation` sampai audio berbunyi |
 | `STALL_TIMEOUT_MS` | 15000 | dari event `waiting` atau `stalled` sampai data stream datang lagi |
+| `ONLINE_RECONNECT_DELAY_MS` | 1000 | jeda stabilisasi jaringan saat event `online` sebelum menyambung ulang |
+| `PLAYLIST_RESOLVE_TIMEOUT_MS` | 4000 | batas waktu mengunduh dan mengekstrak file playlist `.pls`/`.m3u` |
 
 Stream yang tersambung tetapi tidak mengirim data tidak memicu event `error`, jadi kedua timer ini satu-satunya cara mendeteksinya. Keduanya memanggil `failAfter`, yang meneruskan `TimeoutError` ke `handleStreamFailure` kalau `playRequestId` belum berubah.
 
@@ -131,22 +137,23 @@ Chrome mengirim `stalled` kalau data stream tidak datang sekitar 3 detik, walaup
 
 ```mermaid
 flowchart TD
-    E[handleStreamFailure] --> AB[abortStream]
-    AB --> Q{pernah berbunyi<br/>dan bukan NotAllowedError<br/>dan percobaan tersisa?}
-    Q -->|ya| SR[scheduleReconnect<br/>tunggu RECONNECT_DELAYS_MS]
+    E[handleStreamFailure] --> Q{pernah berbunyi<br/>dan bukan NotAllowedError<br/>dan percobaan tersisa?}
+    Q -->|ya| SR[clearStreamTimers<br/>scheduleReconnect<br/>tunggu RECONNECT_DELAYS_MS]
     SR --> RR[runReconnect]
     RR -->|offline| W[waitingForNetwork = true<br/>tunggu event online]
-    W --> RR
+    W -->|event online| OD[debounce ONLINE_RECONNECT_DELAY_MS]
+    OD --> RR
     RR -->|online| PS[reconnectAttempt + 1<br/>playStation reconnect]
-    Q -->|tidak| MF[cancelReconnect<br/>markStreamFailed]
+    Q -->|tidak| AB[abortStream<br/>cancelReconnect<br/>markStreamFailed]
 ```
 
 Aturannya:
 
 - **Hanya stream yang sudah pernah berbunyi** yang disambung ulang (`isPlaying` atau `reconnectAttempt > 0`). Stream yang gagal sebelum berbunyi berarti stasiun offline atau URL rusak, jadi langsung gagal.
+- **Buffer smoothing saat sambung ulang.** Saat koneksi terputus tetapi sambung ulang masih dijadwalkan, `abortStream` tidak langsung dipanggil agar audio yang masih tersisa di buffer lokal tetap dapat berbunyi mulus sampai sambungan baru masuk atau buffer habis.
 - **`NotAllowedError` tidak disambung ulang.** Error ini berarti browser memblokir autoplay. Stasiunnya tidak rusak, dan pengguna cukup menekan Putar lagi.
 - **Jeda per percobaan** dari `RECONNECT_DELAYS_MS`: 1, 2, 4, 8, lalu 15 detik. Sesudah lima percobaan gagal, pesan kegagalannya `ConnectionLost`.
-- **Offline.** `runReconnect` memeriksa `navigator.onLine`. Kalau offline, `reconnectAttempt` tidak dinaikkan dan percobaan ditahan sampai event `online` (`handleOnline`).
+- **Offline dan jeda stabilisasi online.** `runReconnect` memeriksa `navigator.onLine`. Kalau offline, `reconnectAttempt` tidak dinaikkan dan percobaan ditahan sampai event `online`. Saat `online` diterima (`handleOnline`), Dengaran memberi jeda debounce `ONLINE_RECONNECT_DELAY_MS` (1000 ms) agar rute jaringan dan DNS stabil terlebih dahulu sebelum memicu sambung ulang.
 - **Reset jumlah percobaan.** `reconnectAttempt` kembali ke 0 sesudah stream hasil sambung ulang berbunyi selama `RECONNECT_RESET_SECONDS` (10 detik, dihitung dari `streamSeconds`). Tanpa batas ini, server yang memutus koneksi setiap beberapa detik akan disambung ulang tanpa henti.
 - **Aksi pengguna membatalkan sambung ulang.** Menekan Putar, Stop, atau stasiun lain memanggil `cancelReconnect`.
 
