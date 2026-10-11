@@ -11,9 +11,12 @@ Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework,
 - Cari stasiun berdasarkan nama, lalu saring per negara dan genre. Hasilnya bisa diurutkan dari yang terpopuler, paling disukai, nama, atau bitrate.
 - Negara awal ditebak dari browser: Indonesia kalau zona waktunya WIB, WITA, atau WIT, kalau tidak dari bahasa browser. Kalau negara itu tidak punya stasiun, daftar kembali ke Indonesia.
 - Favorit dan daftar Baru diputar (8 stasiun terakhir) disimpan di `localStorage` browser, jadi tidak ada data pengguna yang dikirim ke server.
+- Pengatur waktu tidur (Sleep Timer): matikan siaran otomatis (15, 30, 45, 60 menit) dengan penurunan volume bertahap (fade out) 5 detik sebelum waktu habis.
 - Pintasan keyboard: `/` cari, `Spasi` putar atau stop, `N` dan `P` pindah stasiun, `M` bisukan.
-- Stream yang putus saat sedang diputar disambung ulang otomatis sampai lima kali, dengan jeda 1, 2, 4, 8, lalu 15 detik. Selama perangkat offline, percobaan ditahan sampai jaringan tersambung lagi.
+- Stream yang putus saat sedang diputar disambung ulang otomatis sampai lima kali, dengan jeda 1, 2, 4, 8, lalu 15 detik. Sisa audio di buffer tetap berbunyi mulus saat menyambung ulang, dan selama perangkat offline percobaan ditahan sampai jaringan tersambung lagi.
+- Mendukung playlist `.pls` dan `.m3u` audio biasa yang diekstrak langsung ke URL stream siarannya.
 - Stasiun HLS (`.m3u8`) diputar lewat [hls.js](https://github.com/video-dev/hls.js) di browser yang tidak memutar HLS sendiri, misalnya Firefox. hls.js memilih bitrate otomatis kalau stasiunnya menyediakan beberapa bitrate, dan menjaga latensi ke siaran live di 3 sampai 6 segmen. File hls.js hanya diunduh saat stasiun HLS diputar.
+- Integrasi Media Session: kontrol putar, stop, stasiun sebelumnya/berikutnya, serta durasi mendengar di lock screen dan notifikasi perangkat.
 - Di halaman HTTPS, pencarian hanya menampilkan stasiun dengan stream HTTPS. Stasiun HTTP lama yang masih ada di Favorit atau Baru diputar diberi label `HTTP`, karena browser bisa memblokirnya.
 
 Cara kerja pemutaran, batas waktu, dan sambung ulang dijelaskan di [docs/streaming.md](docs/streaming.md).
