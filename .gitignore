@@ -11,5 +11,6 @@
 # Hasil build, dibuat ulang oleh scripts/build_public.py
 /public/
 
-# State runtime oh-my-claudecode
-/.omc/
+# State runtime oh-my-claudecode. Tanpa garis miring awal: plugin juga membuat .omc/ di
+# subfolder (misalnya src/.omc/) kalau sesi berjalan dari folder itu.
+.omc/
