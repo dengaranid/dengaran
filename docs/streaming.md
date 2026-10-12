@@ -96,6 +96,7 @@ Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal diteru
 | `liveMaxLatencyDurationCount` | `6` | Tertinggal lebih dari 6 segmen: seek langsung ke posisi live. |
 | `maxBufferLength` | `15` | Batas buffer di depan posisi putar, dalam detik (ditingkatkan untuk stabilitas jaringan fluktuatif). |
 | `backBufferLength` | `10` | Batas buffer di belakang posisi putar, dalam detik. |
+| `enableID3MetadataCues`, `enableEmsgMetadataCues`, `enableDateRangeMetadataCues` | `false` | Metadata ID3, EMSG, dan DATERANGE dari stream tidak dipakai aplikasi. Kalau aktif, hls.js membuat `<track src="data:,WEBVTT">` untuk menampungnya, dan CSP `media-src` memblokir `data:`. |
 
 Pemilihan bitrate (ABR) memakai default hls.js. ABR hanya berlaku kalau playlist stasiun menyediakan lebih dari satu bitrate.
 

@@ -77,7 +77,12 @@ const HLS_CONFIG = {
   // Batasi buffer di depan dan di belakang posisi putar supaya kuota dan memori tidak terpakai
   // untuk audio yang tidak akan didengar. Pemilihan bitrate (ABR) memakai default hls.js.
   maxBufferLength: 15,
-  backBufferLength: 10
+  backBufferLength: 10,
+  // Metadata ID3, EMSG, dan DATERANGE dari stream tidak dipakai aplikasi. Kalau aktif, hls.js
+  // membuat <track src="data:,WEBVTT"> untuk menampungnya, dan CSP media-src memblokir data:.
+  enableID3MetadataCues: false,
+  enableEmsgMetadataCues: false,
+  enableDateRangeMetadataCues: false
 };
 const FAVORITE_KEY = "radio_online_favorites_v1";
 const LAST_STATION_KEY = "radio_online_last_station_v1";
