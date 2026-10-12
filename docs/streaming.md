@@ -33,6 +33,8 @@ State pemutaran disimpan di variabel modul:
 | `reconnectAttempt` | jumlah percobaan sambung ulang yang sudah dijalankan |
 | `onlineTimer` | timer debounce penundaan sambung ulang saat jaringan kembali online |
 | `waitingForNetwork` | sambung ulang ditahan karena perangkat offline |
+| `streamUrl` | URL yang dipasang ke elemen audio, termasuk hasil ekstraksi playlist |
+| `playlistAbortController` | fetch playlist yang sedang berjalan |
 
 Tombol putar hanya punya empat tampilan (`PLAY_STATES`): `idle`, `stopped`, `connecting`, dan `playing`. Tidak ada tombol jeda. Siaran live tidak bisa dilanjutkan dari posisi lama, jadi Putar selalu memuat ulang stream dan mulai dari siaran yang sedang berjalan.
 
@@ -80,11 +82,13 @@ Langkah `playStation` secara berurutan:
 
 `isHlsStation` membaca `station.hls` dari Radio Browser. Favorit yang disimpan sebelum field itu ada dikenali dari URL yang berakhir `.m3u8`.
 
-Pada URL playlist audio biasa (`.pls` atau `.m3u`), `resolvePlaylistUrl` mengunduh teks playlist dengan batas waktu `PLAYLIST_RESOLVE_TIMEOUT_MS` (4000 ms). Fungsi `parsePlsPlaylist` mengekstrak URL dari baris `File1=...`, sedangkan `parseM3uPlaylist` mengambil baris URL audio pertama non-komentar. Jika respons diblokir CORS atau format tidak valid, URL stasiun asli digunakan sebagai fallback.
+Pada URL playlist audio biasa (`.pls` atau `.m3u`), `resolvePlaylistUrl` mengunduh teks playlist dengan batas waktu `PLAYLIST_RESOLVE_TIMEOUT_MS` (4000 ms). Fungsi `parsePlsPlaylist` mengekstrak URL dari baris `File1=...`, sedangkan `parseM3uPlaylist` mengambil baris URL audio pertama non-komentar. Jika respons diblokir CORS atau format tidak valid, URL stasiun asli digunakan sebagai fallback. Fetch playlist dibatalkan (`cancelPlaylistFetch`) saat stream dilepas atau diganti, jadi permintaan yang sudah tidak dipakai tidak tetap berjalan sampai batas waktunya.
+
+Jalur ini jarang dipakai: daftar stasiun memakai `url_resolved` dari Radio Browser, yang biasanya sudah berisi URL audio, bukan playlist. Yang masih melewatinya adalah stasiun yang `url_resolved`-nya tetap berupa playlist.
 
 Pada jalur hls.js, stream sebelumnya dihentikan dulu supaya tidak tetap terdengar selama hls.js diunduh. `loadHls` memuat `HLS_SCRIPT` sekali dan memakai ulang promise-nya. Kalau script gagal dimuat, promise dihapus supaya percobaan berikutnya memuat ulang. Kalau `Hls.isSupported()` false (browser tanpa Media Source Extensions), `attachStream` melempar error dan stream gagal.
 
-Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal diteruskan ke `handleStreamFailure`, sama dengan event `error` elemen audio.
+Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal bertipe `MEDIA_ERROR` (decode atau buffer Media Source Extensions) dicoba pulihkan sekali per stream dengan `recoverMediaError`. Error fatal lainnya, atau `MEDIA_ERROR` kedua, diteruskan ke `handleStreamFailure`, sama dengan event `error` elemen audio.
 
 ### `HLS_CONFIG`
 
@@ -151,7 +155,9 @@ flowchart TD
 Aturannya:
 
 - **Hanya stream yang sudah pernah berbunyi** yang disambung ulang (`isPlaying` atau `reconnectAttempt > 0`). Stream yang gagal sebelum berbunyi berarti stasiun offline atau URL rusak, jadi langsung gagal.
-- **Buffer smoothing saat sambung ulang.** Saat koneksi terputus tetapi sambung ulang masih dijadwalkan, `abortStream` tidak langsung dipanggil agar audio yang masih tersisa di buffer lokal tetap dapat berbunyi mulus sampai sambungan baru masuk atau buffer habis.
+- **Stream lama tidak dilepas saat sambung ulang dijadwalkan.** `abortStream` tidak dipanggil, jadi sisa buffer tetap berbunyi sampai `playStation` memasang stream baru. Dalam praktik ini hanya berpengaruh untuk error jaringan fatal hls.js: sesudah event `error` atau `ended` elemen audio sudah berhenti, dan `STALL_TIMEOUT_MS` baru habis sesudah 15 detik tanpa data.
+- **Event dari stream lama diabaikan selama sambung ulang tertunda.** Karena stream lama masih terpasang, ia bisa mengirim `error` atau `ended` sesudah kegagalan pertama. `handleStreamFailure` keluar lebih dulu kalau `isReconnectPending` true (`reconnectTimer`, `onlineTimer`, atau `waitingForNetwork` terisi). Tanpa pengecekan ini, kegagalan kedua membaca `isPlaying` false dan menandai stasiun gagal, atau memasang timer sambung ulang kedua yang menaikkan `reconnectAttempt` dua kali.
+- **Stream lama yang pulih membatalkan percobaan.** Kalau stream lama mengirim `playing` selama jeda, `handleAudioPlaying` memanggil `clearPendingReconnect`, yang menghapus timer tanpa mengubah `reconnectAttempt`. Tanpa ini, timer yang tersisa mengganti stream yang sedang berbunyi.
 - **`NotAllowedError` tidak disambung ulang.** Error ini berarti browser memblokir autoplay. Stasiunnya tidak rusak, dan pengguna cukup menekan Putar lagi.
 - **Jeda per percobaan** dari `RECONNECT_DELAYS_MS`: 1, 2, 4, 8, lalu 15 detik. Sesudah lima percobaan gagal, pesan kegagalannya `ConnectionLost`.
 - **Offline dan jeda stabilisasi online.** `runReconnect` memeriksa `navigator.onLine`. Kalau offline, `reconnectAttempt` tidak dinaikkan dan percobaan ditahan sampai event `online`. Saat `online` diterima (`handleOnline`), Dengaran memberi jeda debounce `ONLINE_RECONNECT_DELAY_MS` (1000 ms) agar rute jaringan dan DNS stabil terlebih dahulu sebelum memicu sambung ulang.
@@ -164,7 +170,7 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 
 | Event | Handler | Perilaku |
 |---|---|---|
-| `playing` | `handleAudioPlaying` | hapus timer, set `isPlaying`, status "Sedang memutar." |
+| `playing` | `handleAudioPlaying` | hapus timer stream dan timer sambung ulang yang tertunda, set `isPlaying`, status "Sedang memutar." |
 | `waiting`, `stalled` | `handleAudioWaiting` | set `isBuffering`, pasang `stallTimer` |
 | `timeupdate` | `handleAudioTimeUpdate` | akhiri buffering (lihat bagian Chrome), hitung `listenSeconds` dan `streamSeconds`, reset `reconnectAttempt` |
 | `pause` | `handleAudioPause` | jeda dari luar halaman (tombol headset, Bluetooth lepas) diperlakukan sebagai Stop |
@@ -181,17 +187,18 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 |---|---|---|
 | `NotAllowedError` | Browser memblokir audio. Tekan Putar sekali lagi. Stasiun tidak ditandai gagal. | disembunyikan |
 | `UnsupportedCodec` | Format AAC tidak didukung browser ini. | disembunyikan |
+| `navigator.onLine` false | Perangkat tidak tersambung ke internet. Stasiun tidak ditandai gagal. | tampil |
 | `ConnectionLost` | Koneksi terputus dan tidak bisa disambung ulang. | tampil |
 | `TimeoutError`, stasiun AAC | Stasiun mungkin offline, atau browser tidak bisa memutar AAC. | tampil |
 | `TimeoutError` | Stasiun tidak merespons. | tampil |
-| stream `http:` di halaman HTTPS | Stream HTTP diblokir browser di halaman HTTPS. | tampil |
+| stream `http:` di halaman HTTPS, dari `station.url` atau `streamUrl` | Stream HTTP diblokir browser di halaman HTTPS. | tampil |
 | selain itu | Stasiun mungkin sedang offline. | tampil |
 
-Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Selain tombol di mini player, jika kesalahan bukan format yang tidak didukung (`UnsupportedCodec`), `showToast` juga memunculkan toast notifikasi berisi aksi tombol "Coba lagi" yang langsung mencoba memutar stasiun kembali.
+Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Selain tombol di mini player, jika kesalahan bukan format yang tidak didukung (`UnsupportedCodec`), `showToast` juga memunculkan toast notifikasi berisi aksi tombol "Coba lagi" yang langsung mencoba memutar stasiun kembali. Aksi toast hanya dijalankan kalau stasiun yang gagal masih ada di player, karena pengguna bisa sudah memilih stasiun lain sebelum toast hilang.
 
 ## Stop dan tutup player
 
-- `abortStream` melepas stream: naikkan `playRequestId`, hapus timer, `detachStream` (hancurkan instance hls.js), pause, hapus `src`, lalu `load()`.
+- `abortStream` melepas stream: naikkan `playRequestId`, hapus timer, `detachStream` (batalkan fetch playlist, hancurkan instance hls.js), pause, hapus `src`, lalu `load()`.
 - `stopPlayback` memanggil `abortStream` dan `cancelReconnect`, lalu set Media Session ke `paused` dan mengosongkan status posisi. Stasiun tetap di player.
 - `closePlayer` melakukan hal yang sama, membatalkan pengatur waktu tidur (`cancelSleepTimer`), lalu menghapus stasiun dari player, menghapus `LAST_STATION_KEY`, dan mengosongkan Media Session.
 
@@ -214,7 +221,7 @@ Fitur pengatur waktu tidur (`setSleepTimer`, `cancelSleepTimer`, `startSleepFade
 
 `setMediaAction` membungkus `setActionHandler` dengan `try`, karena browser lama melempar error untuk action yang tidak didukungnya.
 
-Selain metadata dan action, `updateMediaSessionPosition` memperbarui `navigator.mediaSession.setPositionState` secara berkala selama pemutaran berlangsung (menggunakan `listenSeconds`) agar durasi mendengar dan status live dapat tercermin pada lock screen dan notifikasi sistem operasi yang mendukungnya.
+Selain metadata dan action, `updateMediaSessionPosition` mengisi `navigator.mediaSession.setPositionState` dengan `duration: Infinity` (nilai yang dipakai spesifikasi Media Session untuk siaran live) dan `position` dari `listenSeconds`. `handleAudioTimeUpdate` memanggilnya tiap 5 detik, satu kali per detik itu (`lastPositionSecond`). Saat berhenti atau buffering, posisinya dikosongkan dengan `setPositionState(null)`.
 
 ## HTTPS dan CSP
 

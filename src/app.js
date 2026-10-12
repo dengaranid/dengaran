@@ -218,9 +218,17 @@ let stallTimer = null;
 // True selama elemen audio memutar stream milik currentStation. Event pause dan error yang
 // dikirim sesudah stream dilepas diabaikan berdasarkan nilai ini.
 let streamAttached = false;
+// URL yang benar-benar dipasang ke elemen audio. Bisa berbeda dari station.url kalau URL
+// stasiun adalah playlist .pls atau .m3u yang sudah diekstrak.
+let streamUrl = "";
+// Fetch playlist yang sedang berjalan. Dibatalkan saat stream dilepas atau diganti.
+let playlistAbortController = null;
 // Instance hls.js untuk stream yang sedang dipasang, dan promise pemuatan script-nya.
 let hls = null;
 let hlsLoader = null;
+// Detik listenSeconds terakhir yang dikirim ke setPositionState, supaya timeupdate yang
+// dikirim beberapa kali per detik tidak mengirim posisi yang sama berulang kali.
+let lastPositionSecond = -1;
 // Lama mendengar stream yang sedang dipasang. Dihitung dari kenaikan currentTime, bukan dari
 // nilainya, karena stream HLS live tidak mulai dari 0 dan hls.js bisa melakukan seek ke posisi live.
 // listenSeconds tidak direset saat sambung ulang; streamSeconds direset tiap stream dipasang.
@@ -1130,6 +1138,7 @@ async function playStation(station, { reconnect = false } = {}) {
   // Sambung ulang bukan klik baru: jumlah klik di Radio Browser tidak ditambah lagi.
   if (!reconnect) {
     listenSeconds = 0;
+    lastPositionSecond = -1;
     saveJson(LAST_STATION_KEY, station);
     reportClick(station.id);
   }
@@ -1222,7 +1231,9 @@ function parseM3uPlaylist(content) {
 async function resolvePlaylistUrl(url, requestId) {
   if (!isPlaylistUrl(url)) return url;
 
+  cancelPlaylistFetch();
   const controller = new AbortController();
+  playlistAbortController = controller;
   const timer = setTimeout(() => controller.abort(), PLAYLIST_RESOLVE_TIMEOUT_MS);
 
   try {
@@ -1240,6 +1251,14 @@ async function resolvePlaylistUrl(url, requestId) {
     return url;
   } finally {
     clearTimeout(timer);
+    if (playlistAbortController === controller) playlistAbortController = null;
+  }
+}
+
+function cancelPlaylistFetch() {
+  if (playlistAbortController) {
+    playlistAbortController.abort();
+    playlistAbortController = null;
   }
 }
 
@@ -1248,6 +1267,8 @@ async function resolvePlaylistUrl(url, requestId) {
 // misalnya Firefox. Safari dan stream Icecast/MP3 biasa langsung lewat elemen audio.
 async function attachStream(station, requestId) {
   detachStream();
+  // Tidak dikosongkan saat stream dilepas: pesan gagal masih membacanya sesudah abortStream.
+  streamUrl = station.url;
   streamSeconds = 0;
   lastMediaTime = null;
 
@@ -1263,10 +1284,18 @@ async function attachStream(station, requestId) {
 
     const instance = new Hls(HLS_CONFIG);
     hls = instance;
-    // Error yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal diperlakukan sama
-    // dengan event error elemen audio.
+    let mediaErrorRecovered = false;
+    // Error yang tidak fatal dipulihkan sendiri oleh hls.js. Error media fatal (decode atau
+    // buffer MSE) dicoba pulihkan sekali dengan recoverMediaError. Error fatal lainnya, atau
+    // error media kedua, diperlakukan sama dengan event error elemen audio.
     instance.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal && requestId === playRequestId) handleStreamFailure(station);
+      if (!data.fatal || requestId !== playRequestId) return;
+      if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !mediaErrorRecovered) {
+        mediaErrorRecovered = true;
+        instance.recoverMediaError();
+        return;
+      }
+      handleStreamFailure(station);
     });
     instance.loadSource(station.url);
     instance.attachMedia(audioPlayer);
@@ -1275,6 +1304,7 @@ async function attachStream(station, requestId) {
   } else {
     const resolvedUrl = await resolvePlaylistUrl(station.url, requestId);
     if (requestId !== playRequestId) return;
+    streamUrl = resolvedUrl;
     audioPlayer.src = resolvedUrl;
     audioPlayer.load();
   }
@@ -1283,6 +1313,7 @@ async function attachStream(station, requestId) {
 
 function detachStream() {
   streamAttached = false;
+  cancelPlaylistFetch();
   if (hls) {
     hls.destroy();
     hls = null;
@@ -1343,13 +1374,17 @@ function abortStream() {
 // Stream yang sudah berbunyi lalu putus disambung ulang dengan jeda yang makin panjang.
 // Stream yang belum pernah berbunyi berarti stasiun offline atau URL rusak, jadi langsung gagal.
 function handleStreamFailure(station, error) {
+  // Sambung ulang sudah dijadwalkan. Stream lama tetap terpasang selama jeda itu, jadi event
+  // error atau ended yang menyusul darinya diabaikan. Tanpa pengecekan ini, kegagalan kedua
+  // membaca isPlaying false dan menandai stasiun gagal, atau memasang timer sambung ulang kedua.
+  if (isReconnectPending()) return;
+
   const wasStreaming = isPlaying || reconnectAttempt > 0;
   const blocked = error && error.name === "NotAllowedError";
 
   if (wasStreaming && !blocked && reconnectAttempt < RECONNECT_DELAYS_MS.length) {
-    // Jangan bunuh elemen audio jika audio masih berbunyi dari buffer lokal.
-    // Matikan timer koneksi/stall, namun biarkan sisa buffer berbunyi hingga
-    // sambung ulang berikutnya siap memasang stream baru.
+    // Stream lama tidak dilepas: sisa buffer, misalnya buffer hls.js sesudah error jaringan
+    // fatal, tetap berbunyi sampai stream baru dipasang oleh playStation.
     clearStreamTimers();
     scheduleReconnect(station);
     return;
@@ -1368,7 +1403,12 @@ function scheduleReconnect(station) {
   isConnecting = true;
   showStatus(`Koneksi terputus. Menyambung ulang dalam ${delay / 1000} detik...`);
   updatePlaybackUI();
+  clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(() => runReconnect(station), delay);
+}
+
+function isReconnectPending() {
+  return reconnectTimer !== null || onlineTimer !== null || waitingForNetwork;
 }
 
 // Tanpa jaringan percobaan pasti gagal. Jumlah percobaan tidak bertambah sampai event online dikirim.
@@ -1397,11 +1437,16 @@ function handleOnline() {
 }
 
 function cancelReconnect() {
+  clearPendingReconnect();
+  reconnectAttempt = 0;
+}
+
+// Batalkan percobaan yang sedang ditunggu tanpa mengubah reconnectAttempt.
+function clearPendingReconnect() {
   clearTimeout(reconnectTimer);
   clearTimeout(onlineTimer);
   reconnectTimer = null;
   onlineTimer = null;
-  reconnectAttempt = 0;
   waitingForNetwork = false;
 }
 
@@ -1448,17 +1493,25 @@ function markStreamFailed(station, error) {
     return;
   }
 
-  failedStations.add(station.id);
   const unsupported = Boolean(error && error.name === "UnsupportedCodec");
+  // Perangkat offline: stasiunnya belum tentu rusak, jadi tidak ditandai gagal.
+  const offline = !unsupported && !navigator.onLine;
+  if (!offline) failedStations.add(station.id);
   // Format yang tidak didukung tidak berubah dengan mencoba lagi.
   retryButton.hidden = unsupported;
-  const failureMsg = streamFailureMessage(station, error);
+  const failureMsg = offline
+    ? "Perangkat tidak tersambung ke internet. Periksa koneksi, lalu coba lagi."
+    : streamFailureMessage(station, error);
   showStatus(failureMsg, true);
   if (!unsupported) {
     showToast(failureMsg, {
       icon: "wifiOff",
       actionLabel: "Coba lagi",
-      onAction: () => playStation(station)
+      // Pengguna bisa sudah memilih stasiun lain sebelum toast hilang. Tombol ini hanya
+      // memutar ulang stasiun yang gagal kalau stasiun itu masih ada di player.
+      onAction: () => {
+        if (currentStation && currentStation.id === station.id) playStation(station);
+      }
     });
   }
   setMediaPlaybackState("none");
@@ -1484,7 +1537,8 @@ function streamFailureMessage(station, error) {
   if (name === "TimeoutError") {
     return `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`;
   }
-  if (isInsecureStream(station)) {
+  // URL hasil ekstraksi playlist bisa http:// walau URL stasiunnya https://.
+  if (isInsecureStream(station) || isInsecureStream({ url: streamUrl })) {
     return `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`;
   }
   return `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`;
@@ -1536,8 +1590,10 @@ function handleAudioTimeUpdate() {
   lastMediaTime = now;
   if (reconnectAttempt > 0 && streamSeconds >= RECONNECT_RESET_SECONDS) reconnectAttempt = 0;
   listenTime.textContent = formatTime(listenSeconds);
-  // Update posisi media session tiap beberapa detik
-  if (Math.floor(listenSeconds) % 5 === 0) {
+  // Posisi di lock screen diperbarui tiap 5 detik, satu kali per detik itu.
+  const second = Math.floor(listenSeconds);
+  if (second % 5 === 0 && second !== lastPositionSecond) {
+    lastPositionSecond = second;
     updateMediaSessionPosition();
   }
 }
@@ -1545,6 +1601,9 @@ function handleAudioTimeUpdate() {
 function handleAudioPlaying() {
   if (!currentStation || !streamAttached) return;
 
+  // Stream lama berbunyi lagi selama jeda sambung ulang: percobaan yang dijadwalkan tidak
+  // diperlukan dan akan mengganti stream yang sedang berbunyi.
+  clearPendingReconnect();
   clearStreamTimers();
   isConnecting = false;
   isPlaying = true;
@@ -1761,11 +1820,13 @@ function setMediaPlaybackState(state) {
 function updateMediaSessionPosition() {
   if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function") return;
   try {
+    // Siaran live tidak punya durasi. Spesifikasi Media Session memakai duration Infinity untuk
+    // itu, jadi lock screen tidak menampilkan progress bar yang selalu penuh.
     if (isPlaying && !isBuffering && listenSeconds > 0) {
       navigator.mediaSession.setPositionState({
-        duration: Math.max(listenSeconds, 1),
+        duration: Infinity,
         playbackRate: 1,
-        position: Math.max(listenSeconds, 0)
+        position: listenSeconds
       });
     } else {
       navigator.mediaSession.setPositionState(null);
