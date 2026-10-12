@@ -4,7 +4,7 @@ Dengar radio hari ini.
 
 Dengaran adalah aplikasi web untuk mencari dan memutar stasiun radio dari Indonesia dan negara lain langsung di browser. Data stasiun diambil dari [Radio Browser](https://www.radio-browser.info). Gratis, tanpa iklan, tanpa daftar akun, dan tanpa cookie. Jumlah kunjungan dihitung dengan Cloudflare Web Analytics.
 
-Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework, tidak ada `npm install`. Script build hanya butuh Python 3 bawaan.
+Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework, tidak ada `npm install`. Script build butuh Python 3 bawaan, dan memakai [Bun](https://bun.sh) untuk minify JS kalau tersedia.
 
 ## Fitur
 
@@ -52,7 +52,7 @@ bin/build
 
 `bin/build` menjalankan `python3 scripts/build_public.py`. Script ini mengisi folder `public/` dengan:
 
-- `styles.<hash>.min.css` dan `app.<hash>.min.js`, versi minify dengan hash isi di nama file supaya browser selalu mengambil versi terbaru setelah deploy
+- `styles.<hash>.min.css` dan `app.<hash>.min.js`, versi minify dengan hash isi di nama file supaya browser selalu mengambil versi terbaru setelah deploy. CSS di-minify dengan Python. JS di-minify dengan `bun build --minify` kalau `bun` ada di PATH; kalau tidak, dengan minifier Python yang tidak memperpendek nama variabel, jadi hasilnya sekitar 2,5 KB lebih besar sesudah brotli. Baris output build menyebut minifier mana yang dipakai.
 - `index.html` yang sudah merujuk ke file minify, plus tag SEO dengan URL absolut
 - salinan `src/vendor/` apa adanya
 - ikon dan gambar preview dari `assets/`, `robots.txt`, dan `sitemap.xml`
@@ -65,7 +65,7 @@ Sebelum build untuk produksi, ganti `SITE_URL` di bagian atas `scripts/build_pub
 Ada dua cara, dan pilihannya harus ditentukan saat membuat project, karena project Upload assets tidak bisa diubah ke integrasi Git belakangan.
 
 1. Upload assets: jalankan build, lalu upload isi folder `public/` lewat dashboard Cloudflare setiap ada perubahan.
-2. Integrasi Git: hubungkan repo ini ke Cloudflare Pages dengan build command `python3 scripts/build_public.py` dan build output directory `public`. Setiap push ke branch utama di-deploy ulang otomatis.
+2. Integrasi Git: hubungkan repo ini ke Cloudflare Pages dengan build command `python3 scripts/build_public.py` dan build output directory `public`. Setiap push ke branch utama di-deploy ulang otomatis. Build image Cloudflare Pages sudah berisi Bun. Isi environment variable `BUN_VERSION` dengan versi yang sama dengan Bun di komputer sendiri (`bun --version`), supaya hasil minify di lokal dan di Cloudflare sama.
 
 ## Menyembunyikan stasiun
 
