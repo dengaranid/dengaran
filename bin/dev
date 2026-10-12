@@ -29,9 +29,28 @@ for arg in "$@"; do
   esac
 done
 
+port_in_use() {
+  lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+}
+
 # Port dicek sebelum build, supaya public/ tidak ditulis ulang kalau server gagal jalan.
-if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "Port $PORT sudah dipakai proses lain. Pilih port lain: bin/dev <port>" >&2
+# Saran perintahnya memakai flag yang sama dan port bebas berikutnya, kalau ada dalam 20 port.
+if port_in_use "$PORT"; then
+  echo "Port $PORT sudah dipakai proses lain." >&2
+  FLAG=""
+  [ "$DIR" = "public" ] && FLAG=" --public"
+  NEXT=""
+  for candidate in $(seq $((PORT + 1)) $((PORT + 20))); do
+    if ! port_in_use "$candidate"; then
+      NEXT="$candidate"
+      break
+    fi
+  done
+  if [ -n "$NEXT" ]; then
+    echo "Pakai port lain: bin/dev$FLAG $NEXT" >&2
+  else
+    echo "Pakai port lain: bin/dev$FLAG <port>" >&2
+  fi
   exit 1
 fi
 
