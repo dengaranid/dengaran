@@ -21,7 +21,7 @@
   <meta property="og:title" content="Dengaran: Radio Online Indonesia, Gratis di Browser" />
   <meta
     property="og:description"
-    content="Ribuan stasiun radio online dari Indonesia dan negara lain. Gratis, tanpa iklan, tanpa daftar akun."
+    content="Ribuan stasiun radio online dari Indonesia dan negara lain. Gratis, tanpa iklan, tanpa cookie, tanpa daftar akun."
   />
   <meta name="twitter:card" content="summary_large_image" />
   <!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->
@@ -257,7 +257,7 @@
           <kbd>N</kbd> <kbd>P</kbd> stasiun berikutnya atau sebelumnya, <kbd>M</kbd> bisukan.
         </span>
         <span id="shortcutOffText" hidden>Pintasan keyboard nonaktif.</span>
-        <button id="shortcutToggle" class="shortcut-toggle" type="button">Matikan pintasan</button>
+        <button id="shortcutToggle" class="shortcut-toggle" type="button">Nonaktifkan pintasan</button>
       </p>
       <a
         class="footer-link"
@@ -286,8 +286,7 @@
       </p>
       <div id="sleepTimerOptions" class="sleep-options" role="radiogroup" aria-labelledby="sleepTitle">
         <button class="sleep-option is-active" type="button" role="radio" aria-checked="true" data-sleep-minutes="0">
-          <span class="sleep-option-label">Mati</span>
-          <span class="sleep-option-status">Nonaktif</span>
+          <span class="sleep-option-label">Nonaktif</span>
         </button>
         <button class="sleep-option" type="button" role="radio" aria-checked="false" data-sleep-minutes="15">
           <span class="sleep-option-label">15 menit</span>
@@ -431,7 +430,8 @@
           <p>
             Daftar stasiun diambil dari Radio Browser, dan siaran diambil langsung dari server stasiun.
             Saat Anda memutar stasiun, Dengaran melaporkan satu klik ke Radio Browser untuk peringkat
-            popularitas. Pihak tersebut menerima alamat IP Anda dan mengelolanya menurut kebijakan mereka.
+            popularitas. Radio Browser dan server stasiun yang diputar menerima alamat IP Anda dan
+            mengelolanya menurut kebijakan masing-masing.
           </p>
         </div>
 
@@ -450,7 +450,7 @@
           <h3>Hak cipta dan merek</h3>
           <p>
             Siaran dan merek stasiun adalah milik masing-masing stasiun. Dengaran tidak berafiliasi
-            dengan stasiun mana pun. Browser Anda mengambil siaran langsung dari server milik stasiun.
+            dengan stasiun mana pun.
           </p>
         </div>
 
@@ -464,15 +464,15 @@
         </div>
 
         <div class="dialog-section">
-          <h3>Permohonan sembunyikan stasiun</h3>
+          <h3>Permintaan menyembunyikan stasiun</h3>
           <p>
             Pemilik stasiun atau pemegang hak cipta yang ingin stasiunnya disembunyikan dari Dengaran
             dapat mengirim email ke <a id="contactLink" href="#"><span data-fill="email"></span></a>.
           </p>
           <p>
             Sertakan nama stasiun, link atau <code>stationuuid</code> di Radio Browser, serta keterangan
-            bahwa Anda pemilik stasiun atau perwakilan sah. Permintaan ini berlaku untuk Dengaran.
-            Untuk mengubah atau menghapus data di basis data publik, hubungi Radio Browser.
+            bahwa Anda pemilik stasiun atau perwakilan sah. Stasiun hanya disembunyikan di Dengaran.
+            Datanya tetap ada di Radio Browser. Untuk mengubah atau menghapusnya, hubungi Radio Browser.
           </p>
         </div>
       </section>

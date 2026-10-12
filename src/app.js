@@ -15,7 +15,7 @@ const SITE_INFO = {
   email: "dengaranid@gmail.com",
   supportPlatform: "Saweria",
   supportUrl: "https://saweria.co/dengaranid",
-  legalUpdated: "9 Oktober 2026"
+  legalUpdated: "12 Oktober 2026"
 };
 
 // Stasiun yang disembunyikan atas permintaan pemilik stasiun atau pemegang hak cipta.
@@ -1596,7 +1596,7 @@ function updateVolumeUI() {
 function updateShortcutUI() {
   shortcutOnText.hidden = !shortcutsEnabled;
   shortcutOffText.hidden = shortcutsEnabled;
-  shortcutToggle.textContent = shortcutsEnabled ? "Matikan pintasan" : "Aktifkan pintasan";
+  shortcutToggle.textContent = shortcutsEnabled ? "Nonaktifkan pintasan" : "Aktifkan pintasan";
 }
 
 function restoreVolume() {
@@ -1615,7 +1615,7 @@ function setSleepTimer(minutes) {
   if (minutes <= 0) {
     sleepTimerMinutes = 0;
     updateSleepTimerUI();
-    showToast("Pengatur waktu tidur dimatikan.", { icon: "timer" });
+    showToast("Pengatur waktu tidur dinonaktifkan.", { icon: "timer" });
     return;
   }
 
@@ -1714,8 +1714,6 @@ function updateSleepTimerUI() {
           btn.appendChild(statusEl);
         }
         statusEl.textContent = "Aktif";
-      } else if (mins === 0) {
-        if (statusEl) statusEl.textContent = isSelected ? "Nonaktif" : "";
       } else if (statusEl) {
         statusEl.remove();
       }
