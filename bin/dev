@@ -29,13 +29,14 @@ for arg in "$@"; do
   esac
 done
 
-if [ "$DIR" = "public" ]; then
-  "$ROOT/bin/build"
-fi
-
+# Port dicek sebelum build, supaya public/ tidak ditulis ulang kalau server gagal jalan.
 if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Port $PORT sudah dipakai proses lain. Pilih port lain: bin/dev <port>" >&2
   exit 1
+fi
+
+if [ "$DIR" = "public" ]; then
+  "$ROOT/bin/build"
 fi
 
 echo "Menyajikan $DIR/ di http://localhost:$PORT/ (Ctrl+C untuk berhenti)"
