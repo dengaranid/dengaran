@@ -305,6 +305,15 @@ volumeInput.addEventListener("input", () => {
 tabRadio.addEventListener("click", () => setActiveTab("radio"));
 tabFavorite.addEventListener("click", () => setActiveTab("favorite"));
 tabHistory.addEventListener("click", () => setActiveTab("history"));
+radioSection.querySelector('[role="tablist"]').addEventListener("keydown", event => {
+  // Tab Baru diputar disembunyikan CSS di desktop, jadi hanya tab yang tampil yang dilewati.
+  const tabs = [tabRadio, tabFavorite, tabHistory].filter(tab => tab.getClientRects().length > 0);
+  const nextIndex = tabIndexForKey(event.key, tabs.indexOf(event.target), tabs.length);
+  if (nextIndex === null) return;
+  event.preventDefault();
+  tabs[nextIndex].click();
+  tabs[nextIndex].focus();
+});
 
 toastAction.addEventListener("click", () => {
   const handler = toastActionHandler;
@@ -633,6 +642,9 @@ function setActiveTab(tab) {
   tabRadio.setAttribute("aria-selected", String(tab === "radio"));
   tabFavorite.setAttribute("aria-selected", String(tab === "favorite"));
   tabHistory.setAttribute("aria-selected", String(tab === "history"));
+  tabRadio.tabIndex = tab === "radio" ? 0 : -1;
+  tabFavorite.tabIndex = tab === "favorite" ? 0 : -1;
+  tabHistory.tabIndex = tab === "history" ? 0 : -1;
   radioScroll.hidden = tab !== "radio";
   favoriteScroll.hidden = tab !== "favorite";
   if (historyScroll) historyScroll.hidden = tab !== "history";
@@ -925,18 +937,7 @@ function setupDialogTabs(dialog) {
     const currentTab = event.target.closest('[role="tab"]');
     if (!currentTab || !tabs.includes(currentTab)) return;
 
-    const currentIndex = tabs.indexOf(currentTab);
-    let nextIndex = null;
-
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % tabs.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = tabs.length - 1;
-    }
+    const nextIndex = tabIndexForKey(event.key, tabs.indexOf(currentTab), tabs.length);
 
     if (nextIndex !== null) {
       event.preventDefault();
@@ -945,6 +946,17 @@ function setupDialogTabs(dialog) {
       targetTab.focus();
     }
   });
+}
+
+// Pola tablist WAI-ARIA: panah kiri/kanan berpindah melingkar, Home dan End ke ujung.
+// Mengembalikan null untuk tombol lain, atau kalau fokus tidak berada di salah satu tab.
+function tabIndexForKey(key, currentIndex, length) {
+  if (currentIndex < 0) return null;
+  if (key === "ArrowRight") return (currentIndex + 1) % length;
+  if (key === "ArrowLeft") return (currentIndex - 1 + length) % length;
+  if (key === "Home") return 0;
+  if (key === "End") return length - 1;
+  return null;
 }
 
 function selectDialogTab(selectedTab, shouldScroll = false) {

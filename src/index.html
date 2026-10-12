@@ -99,7 +99,7 @@
       </form>
 
       <main id="layout" class="layout" data-tab="radio">
-        <section id="radioSection" class="section" aria-labelledby="radioHeading">
+        <section id="radioSection" class="section" aria-label="Daftar radio">
           <div class="section-header panel-tabs-header">
             <div class="panel-tabs" role="tablist" aria-label="Pilihan daftar">
               <button
@@ -109,6 +109,7 @@
                 role="tab"
                 aria-selected="true"
                 aria-controls="radioScroll"
+                tabindex="0"
               >
                 <span>Radio</span>
                 <span id="stationCount" class="count-badge"></span>
@@ -120,6 +121,7 @@
                 role="tab"
                 aria-selected="false"
                 aria-controls="favoriteScroll"
+                tabindex="-1"
               >
                 <span>Favorit</span>
                 <span id="favoriteCount" class="count-badge"></span>
@@ -131,6 +133,7 @@
                 role="tab"
                 aria-selected="false"
                 aria-controls="historyScroll"
+                tabindex="-1"
               >
                 <span>Baru diputar</span>
                 <span id="historyTabCount" class="count-badge">0</span>
