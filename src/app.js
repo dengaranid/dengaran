@@ -162,7 +162,7 @@ const stationCount = document.getElementById("stationCount");
 const historySection = document.getElementById("historySection");
 const appShell = document.querySelector(".app");
 const heroHeader = document.querySelector(".hero");
-const shortcutHint = document.querySelector(".shortcut-hint");
+const appFooter = document.querySelector(".app-footer");
 const shortcutOnText = document.getElementById("shortcutOnText");
 const shortcutOffText = document.getElementById("shortcutOffText");
 const shortcutToggle = document.getElementById("shortcutToggle");
@@ -1943,9 +1943,9 @@ function updateLayoutHeight() {
     parseFloat(appStyle.paddingBottom) +
     (parseFloat(appStyle.rowGap) || 0) +
     heroHeader.offsetHeight +
-    shortcutHint.offsetHeight +
-    (shortcutHint.offsetHeight
-      ? (parseFloat(appStyle.rowGap) || 0) + parseFloat(getComputedStyle(shortcutHint).marginTop)
+    appFooter.offsetHeight +
+    (appFooter.offsetHeight
+      ? (parseFloat(appStyle.rowGap) || 0) + parseFloat(getComputedStyle(appFooter).marginTop)
       : 0) +
     controlsForm.offsetHeight +
     miniPlayer.offsetHeight +

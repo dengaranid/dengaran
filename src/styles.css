@@ -431,12 +431,36 @@ kbd {
 }
 
 /* Di bawah jendela aplikasi. Margin negatif membuat jaraknya 6px, bukan gap 12px. */
-.shortcut-hint {
+.app-footer {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin: -6px 0 0;
   color: var(--muted);
   font-size: 0.8rem;
   line-height: 1.5;
+}
+
+.shortcut-hint {
+  margin: 0;
+}
+
+/* Logo GitHub resmi: panduan merek GitHub hanya mengizinkan putih, hitam, abu-abu, atau hijau,
+   jadi hover memakai --text (krem terang), bukan --primary. */
+.footer-link {
+  display: inline-flex;
+  color: var(--muted);
+}
+
+.footer-link .brand-mark {
+  width: 16px;
+  height: 16px;
+}
+
+.footer-link:hover {
+  color: var(--text);
 }
 
 .shortcut-toggle {
@@ -455,7 +479,7 @@ kbd {
 }
 
 @media (hover: none) {
-  .shortcut-hint {
+  .app-footer {
     display: none;
   }
 }
@@ -1634,7 +1658,7 @@ kbd {
     font-size: 0.85rem;
   }
 
-  .shortcut-hint {
+  .app-footer {
     display: none;
   }
 

@@ -6,6 +6,8 @@ Ikon yang dipakai: `chevron-down`, `circle-alert`, `coffee`, `heart`, `loader-ci
 
 Lima di antaranya (`chevron-down`, `circle-alert`, `search`, `square`, `x`) berasal dari project Feather, jadi lisensi MIT Feather juga berlaku untuk kelima ikon itu.
 
+Logo Invertocat di footer adalah merek dagang GitHub, Inc., diambil dari paket logo resmi `https://brand.github.com/GitHub_Logos.zip` (`GitHub_Invertocat_White.svg`) tanpa perubahan bentuk. Logo ini dipakai hanya sebagai link ke repo Dengaran di GitHub, sesuai panduan merek di `https://brand.github.com/foundations/logo`, dan tidak berarti GitHub berafiliasi dengan atau mendukung Dengaran.
+
 Dengaran juga menyertakan [hls.js](https://github.com/video-dev/hls.js) versi 1.7.3, build `dist/hls.light.min.js` dari paket npm `hls.js`, disimpan sebagai `src/vendor/hls-1.7.3.light.min.js`. Satu-satunya perubahan: baris komentar `sourceMappingURL` di akhir file dihapus karena file source map tidak ikut disalin. hls.js dimuat hanya saat stasiun HLS diputar di browser yang tidak memutar HLS sendiri. Lisensinya Apache-2.0, dengan teks lengkap di bagian hls.js di bawah.
 
 ## Lucide
