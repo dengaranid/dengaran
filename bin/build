@@ -9,6 +9,24 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Warna ANSI hanya kalau stream itu terminal dan NO_COLOR (https://no-color.org) kosong.
+# Dicek di sini, bukan di dalam paint: di dalam $(...) stdout adalah pipe, jadi -t 1 selalu gagal.
+# Pemakaian: paint <fd> <kode> <teks>, misalnya paint 2 "1;31" "Error".
+COLOR_1=""
+COLOR_2=""
+if [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
+  [ -t 1 ] && COLOR_1=1
+  [ -t 2 ] && COLOR_2=1
+fi
+paint() {
+  local enabled="COLOR_$1"
+  if [ -n "${!enabled}" ]; then
+    printf '\033[%sm%s\033[0m' "$2" "$3"
+  else
+    printf '%s' "$3"
+  fi
+}
+
 case "${1:-}" in
   "") ;;
   -h|--help)
@@ -16,8 +34,8 @@ case "${1:-}" in
     exit 0
     ;;
   *)
-    echo "Argumen tidak dikenal: $1" >&2
-    echo "Pakai: bin/build" >&2
+    echo "$(paint 2 "1;31" "Argumen tidak dikenal:") $1" >&2
+    echo "Pakai: $(paint 2 1 "bin/build")" >&2
     exit 1
     ;;
 esac

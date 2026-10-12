@@ -44,6 +44,8 @@ bin/dev 3000         # port lain, atau PORT=3000 bin/dev
 
 Script ini menjalankan `python3 -m http.server`, jadi tidak perlu dependensi lain. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian. Server ini tidak membaca `public/_headers`, jadi CSP dan aturan cache baru bisa dicek sesudah deploy.
 
+Output `bin/dev`, `bin/build`, dan `scripts/build_public.py` berwarna kalau dijalankan di terminal. Warna tidak dipakai saat output di-pipe atau ditulis ke log, termasuk log build Cloudflare Pages. Untuk menonaktifkannya di terminal, isi `NO_COLOR=1`.
+
 ## Build
 
 ```bash

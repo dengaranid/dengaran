@@ -10,6 +10,25 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Warna ANSI hanya kalau stream itu terminal dan NO_COLOR (https://no-color.org) kosong.
+# Dicek di sini, bukan di dalam paint: di dalam $(...) stdout adalah pipe, jadi -t 1 selalu gagal.
+# Pemakaian: paint <fd> <kode> <teks>, misalnya paint 2 "1;31" "Error".
+COLOR_1=""
+COLOR_2=""
+if [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
+  [ -t 1 ] && COLOR_1=1
+  [ -t 2 ] && COLOR_2=1
+fi
+paint() {
+  local enabled="COLOR_$1"
+  if [ -n "${!enabled}" ]; then
+    printf '\033[%sm%s\033[0m' "$2" "$3"
+  else
+    printf '%s' "$3"
+  fi
+}
+
 PORT="${PORT:-8080}"
 DIR="src"
 
@@ -21,8 +40,8 @@ for arg in "$@"; do
       exit 0
       ;;
     ''|*[!0-9]*)
-      echo "Argumen tidak dikenal: $arg" >&2
-      echo "Pakai: bin/dev [--public] [port]" >&2
+      echo "$(paint 2 "1;31" "Argumen tidak dikenal:") $arg" >&2
+      echo "Pakai: $(paint 2 1 "bin/dev [--public] [port]")" >&2
       exit 1
       ;;
     *) PORT="$arg" ;;
@@ -36,7 +55,7 @@ port_in_use() {
 # Port dicek sebelum build, supaya public/ tidak ditulis ulang kalau server gagal jalan.
 # Saran perintahnya memakai flag yang sama dan port bebas berikutnya, kalau ada dalam 20 port.
 if port_in_use "$PORT"; then
-  echo "Port $PORT sudah dipakai proses lain." >&2
+  echo "$(paint 2 "1;31" "Port $PORT sudah dipakai proses lain.")" >&2
   FLAG=""
   [ "$DIR" = "public" ] && FLAG=" --public"
   NEXT=""
@@ -47,9 +66,9 @@ if port_in_use "$PORT"; then
     fi
   done
   if [ -n "$NEXT" ]; then
-    echo "Pakai port lain: bin/dev$FLAG $NEXT" >&2
+    echo "Pakai port lain: $(paint 2 "1;36" "bin/dev$FLAG $NEXT")" >&2
   else
-    echo "Pakai port lain: bin/dev$FLAG <port>" >&2
+    echo "Pakai port lain: $(paint 2 "1;36" "bin/dev$FLAG <port>")" >&2
   fi
   exit 1
 fi
@@ -58,5 +77,5 @@ if [ "$DIR" = "public" ]; then
   "$ROOT/bin/build"
 fi
 
-echo "Menyajikan $DIR/ di http://localhost:$PORT/ (Ctrl+C untuk berhenti)"
+echo "Menyajikan $(paint 1 36 "$DIR/") di $(paint 1 "1;4;32" "http://localhost:$PORT/") $(paint 1 2 "(Ctrl+C untuk berhenti)")"
 exec python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT/$DIR"

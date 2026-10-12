@@ -21,6 +21,7 @@ Jalankan dari root project:  python3 scripts/build_public.py
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import sys
@@ -57,6 +58,20 @@ API_HOSTS = [
     "https://all.api.radio-browser.info",
     "https://de1.api.radio-browser.info",
 ]
+
+
+# ---------- Warna output terminal ----------
+
+# Kode ANSI hanya dipakai kalau output masuk ke terminal dan NO_COLOR (https://no-color.org) kosong,
+# jadi log build Cloudflare Pages dan output yang di-pipe tetap teks biasa.
+def paint(text, code, stream=sys.stdout):
+    if not stream.isatty() or os.environ.get("NO_COLOR") or os.environ.get("TERM") == "dumb":
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def fail(message):
+    sys.exit(paint("Build gagal: ", "1;31", sys.stderr) + message)
 
 
 # ---------- Minify CSS ----------
@@ -396,7 +411,7 @@ def content_hash(text):
 def main():
     for name in ["index.html", "styles.css", "app.js"]:
         if not (SRC_DIR / name).exists():
-            sys.exit(f"File sumber tidak ditemukan: {SRC_DIR / name}")
+            fail(f"File sumber tidak ditemukan: {SRC_DIR / name}")
 
     html = (SRC_DIR / "index.html").read_text(encoding="utf-8")
     css_source = (SRC_DIR / "styles.css").read_text(encoding="utf-8")
@@ -404,7 +419,7 @@ def main():
 
     for marker, label in [(SEO_MARKER, "penanda SEO"), (CSS_TAG, "tag CSS"), (JS_TAG, "tag JS")]:
         if marker not in html:
-            sys.exit(f"{label} tidak ditemukan di src/index.html: {marker}")
+            fail(f"{label} tidak ditemukan di src/index.html: {marker}")
 
     css = minify_css(css_source)
     try:
@@ -415,7 +430,7 @@ def main():
             js = minify_js(js_source)
             js_minifier = "Python"
     except ValueError as error:
-        sys.exit(f"Minify JS gagal: {error}")
+        fail(f"Minify JS gagal: {error}")
 
     css_name = f"styles.{content_hash(css)}.min.css"
     js_name = f"app.{content_hash(js)}.min.js"
@@ -440,7 +455,7 @@ def main():
     for name in ASSET_FILES:
         source = ASSETS_DIR / name
         if not source.exists():
-            sys.exit(f"Aset tidak ditemukan: {source}")
+            fail(f"Aset tidak ditemukan: {source}")
         shutil.copyfile(source, OUTPUT_DIR / name)
 
     if VENDOR_DIR.exists():
@@ -484,14 +499,21 @@ def main():
     def size(text):
         return len(text.encode("utf-8"))
 
-    print(f"public/{css_name}  {size(css_source)} -> {size(css)} byte")
-    print(f"public/{js_name}  {size(js_source)} -> {size(js)} byte, minify {js_minifier}")
-    print(f"public/index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt untuk {SITE_URL}")
-    if CF_ANALYTICS_TOKEN:
-        print("Cloudflare Web Analytics: disisipkan")
-    else:
-        print("Cloudflare Web Analytics: tidak disisipkan, CF_ANALYTICS_TOKEN kosong")
+    # Sumber kosong tidak menghasilkan persentase, bukan ZeroDivisionError.
+    def saved(before, after):
+        if not before:
+            return ""
+        return paint(f"-{round((1 - after / before) * 100)}%", "32")
 
+    css_size, js_size = size(css), size(js)
+    print(paint("Build selesai", "1;32") + paint(f" untuk {SITE_URL}", "2"))
+    print(f"  {paint('public/' + css_name, '36')}  {size(css_source)} -> {css_size} byte  {saved(size(css_source), css_size)}")
+    print(f"  {paint('public/' + js_name, '36')}  {size(js_source)} -> {js_size} byte  {saved(size(js_source), js_size)}, minify {js_minifier}")
+    print(f"  {paint('public/', '36')}index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt")
+    if CF_ANALYTICS_TOKEN:
+        print("  Cloudflare Web Analytics: " + paint("disisipkan", "32"))
+    else:
+        print("  Cloudflare Web Analytics: " + paint("tidak disisipkan, CF_ANALYTICS_TOKEN kosong", "33"))
 
 if __name__ == "__main__":
     main()
