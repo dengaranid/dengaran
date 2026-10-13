@@ -15,8 +15,9 @@ name: Rebuild
 
 on:
   schedule:
-    # Senin 02:00 UTC (09:00 WIB).
-    - cron: "0 2 * * 1"
+    # Minggu 23:17 UTC = Senin 06:17 WIB, sebelum jam kerja. Menit 17, bukan 00: GitHub
+    # menyebut jadwal di awal jam paling sering tertunda karena antrean sedang penuh.
+    - cron: "17 23 * * 0"
   workflow_dispatch:
 
 permissions: {}
