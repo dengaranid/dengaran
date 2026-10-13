@@ -63,6 +63,10 @@ const PLAYLIST_RESOLVE_TIMEOUT_MS = 4000;
 // Jumlah percobaan baru dikembalikan ke 0 sesudah stream hasil sambung ulang berbunyi selama ini.
 // Tanpa batas ini, server yang memutus koneksi tiap beberapa detik disambung ulang tanpa henti.
 const RECONNECT_RESET_SECONDS = 10;
+// Volume sistem tidak bisa dibaca dari browser. Supaya suara tidak langsung keras saat volume
+// sistem masih tinggi, pemutaran yang dimulai pengguna naik dari -40 dB ke level slider.
+const FADE_IN_MS = 3000;
+const FADE_IN_FLOOR_DB = -40;
 // hls.js hanya dimuat saat stasiun HLS diputar di browser yang tidak memutar HLS sendiri.
 // Versi ditulis di nama file supaya aturan cache immutable untuk *.min.js tetap aman.
 const HLS_SCRIPT = "vendor/hls-1.7.3.light.min.js";
@@ -267,6 +271,9 @@ let sleepTimerEnd = null;
 let sleepTimerTicker = null;
 let sleepFadeTicker = null;
 let sleepOriginalVolume = null;
+// Level slider yang dituju fade-in. null saat tidak ada fade-in yang menunggu atau berjalan.
+let fadeInTarget = null;
+let fadeInTicker = null;
 // Pintasan satu huruf bisa dimatikan (WCAG 2.1.4). Nilai selain false dianggap aktif.
 let shortcutsEnabled = loadJson(SHORTCUTS_KEY, true) !== false;
 
@@ -317,6 +324,7 @@ retryButton.addEventListener("click", () => {
 });
 muteButton.addEventListener("click", toggleMute);
 volumeInput.addEventListener("input", () => {
+  stopFadeIn();
   audioPlayer.volume = Number(volumeInput.value);
   if (audioPlayer.muted && audioPlayer.volume > 0) audioPlayer.muted = false;
   saveJson(VOLUME_KEY, audioPlayer.volume);
@@ -1171,6 +1179,9 @@ async function playStation(station, { reconnect = false, shoutcastRetry = false 
     reportClick(station.id);
   }
 
+  // Sambung ulang tidak di-fade: sisa buffer stream lama masih berbunyi di level slider.
+  if (!reconnect) prepareFadeIn();
+
   // Stream yang menggantung tidak memicu event error: batasi waktunya.
   connectTimer = failAfter(CONNECT_TIMEOUT_MS, station, requestId);
 
@@ -1201,6 +1212,7 @@ async function playStation(station, { reconnect = false, shoutcastRetry = false 
   clearStreamTimers();
   isConnecting = false;
   isPlaying = true;
+  startFadeIn();
   showStatus("Sedang memutar.");
   setMediaSession(station);
   addToHistory(station);
@@ -1517,6 +1529,7 @@ function clearPendingReconnect() {
 
 function stopPlayback(message) {
   abortStream();
+  stopFadeIn();
   cancelReconnect();
   isConnecting = false;
   isPlaying = false;
@@ -1530,6 +1543,7 @@ function stopPlayback(message) {
 
 function closePlayer() {
   abortStream();
+  stopFadeIn();
   cancelReconnect();
   cancelSleepTimer();
   currentStation = null;
@@ -1674,6 +1688,7 @@ function handleAudioPlaying() {
   isPlaying = true;
   isBuffering = false;
   retryButton.hidden = true;
+  startFadeIn();
   showStatus("Sedang memutar.");
   setMediaPlaybackState("playing");
   updateMediaSessionPosition();
@@ -1702,8 +1717,10 @@ function toggleMute() {
 }
 
 // Ikon Lucide mengikuti level: volume-x (bisu atau 0), volume-1 (di bawah 50%), volume-2.
+// Selama fade-in, UI menampilkan level slider, bukan volume yang sedang naik.
 function updateVolumeUI() {
-  const percent = Math.round(audioPlayer.volume * 100);
+  const level = fadeInTarget === null ? audioPlayer.volume : fadeInTarget;
+  const percent = Math.round(level * 100);
   const silent = audioPlayer.muted || percent === 0;
 
   muteButton.innerHTML = silent ? ICONS.volumeOff : percent < 50 ? ICONS.volumeLow : ICONS.volumeHigh;
@@ -1729,6 +1746,38 @@ function restoreVolume() {
   audioPlayer.volume = safeVolume;
   volumeInput.value = String(safeVolume);
   updateVolumeUI();
+}
+
+// Volume diturunkan ke FADE_IN_FLOOR_DB sebelum stream tersambung. Kenaikannya baru dimulai
+// startFadeIn saat audio berbunyi, supaya waktu menyambung tidak mengurangi durasi fade.
+function prepareFadeIn() {
+  // Fade-out sleep timer sedang mengatur volume: dua interval tidak boleh menulis bersamaan.
+  if (sleepFadeTicker) return;
+  stopFadeIn();
+  fadeInTarget = Number(volumeInput.value);
+  audioPlayer.volume = fadeInTarget * Math.pow(10, FADE_IN_FLOOR_DB / 20);
+}
+
+// Naik linier dalam desibel, alasannya sama dengan startSleepFadeOut.
+function startFadeIn() {
+  if (fadeInTarget === null || fadeInTicker) return;
+  const target = fadeInTarget;
+  const fadeStart = Date.now();
+
+  fadeInTicker = setInterval(() => {
+    const progress = Math.min(1, (Date.now() - fadeStart) / FADE_IN_MS);
+    audioPlayer.volume = target * Math.pow(10, (FADE_IN_FLOOR_DB * (1 - progress)) / 20);
+    if (progress >= 1) stopFadeIn();
+  }, 50);
+}
+
+// Menghentikan fade-in dan langsung memasang level slider.
+function stopFadeIn() {
+  clearInterval(fadeInTicker);
+  fadeInTicker = null;
+  if (fadeInTarget === null) return;
+  audioPlayer.volume = fadeInTarget;
+  fadeInTarget = null;
 }
 
 // ---------- Pengatur Waktu Tidur (Sleep Timer) ----------
@@ -1791,6 +1840,7 @@ function tickSleepTimer() {
 
 function startSleepFadeOut() {
   if (sleepFadeTicker) return;
+  stopFadeIn();
   sleepOriginalVolume = audioPlayer.volume;
   const startVol = audioPlayer.volume;
   const fadeStart = Date.now();

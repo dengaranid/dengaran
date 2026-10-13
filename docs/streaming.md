@@ -220,6 +220,16 @@ Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpo
 - `stopPlayback` memanggil `abortStream` dan `cancelReconnect`, lalu set Media Session ke `paused` dan mengosongkan status posisi. Stasiun tetap di player.
 - `closePlayer` melakukan hal yang sama, membatalkan pengatur waktu tidur (`cancelSleepTimer`), lalu menghapus stasiun dari player, menghapus `LAST_STATION_KEY`, dan mengosongkan Media Session.
 
+## Fade-in volume saat mulai putar
+
+Browser tidak bisa membaca volume sistem. Kalau volume sistem masih tinggi, misalnya sesudah rapat online, stream yang langsung berbunyi di level slider terdengar keras. Karena itu volume dinaikkan bertahap:
+
+- `playStation` yang dimulai pengguna memanggil `prepareFadeIn`: volume diturunkan ke `FADE_IN_FLOOR_DB` (-40 dB) dari level slider sebelum stream tersambung. Saat audio berbunyi, `handleAudioPlaying` (dan jalur sukses `playStation`) memanggil `startFadeIn`, yang menaikkan volume linier dalam desibel ke level slider selama `FADE_IN_MS` (3 detik). Fade baru dimulai saat audio berbunyi supaya waktu menyambung tidak mengurangi durasinya.
+- Sambung ulang tidak memanggil `prepareFadeIn`, karena sisa buffer stream lama masih berbunyi di level slider.
+- `stopFadeIn` menghentikan fade dan memasang level slider. Dipanggil saat slider digeser, di `stopPlayback`, `closePlayer`, dan `startSleepFadeOut`. `prepareFadeIn` dilewati selama fade-out sleep timer berjalan.
+- Selama `fadeInTarget` terisi, `updateVolumeUI` menampilkan level slider, bukan volume yang sedang naik.
+- Di Safari iOS, `audio.volume` tidak bisa diubah dari JavaScript, jadi fade-in tidak berpengaruh di sana.
+
 ## Pengatur waktu tidur (Sleep Timer)
 
 Fitur pengatur waktu tidur (`setSleepTimer`, `cancelSleepTimer`, `startSleepFadeOut`, `finishSleepTimer`) memungkinkan pengguna mengatur waktu penghentian siaran (pilihan: Nonaktif, 15m, 30m, 45m, 60m):

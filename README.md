@@ -12,6 +12,7 @@ Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework,
 - Negara awal ditebak dari browser: Indonesia kalau zona waktunya WIB, WITA, atau WIT, kalau tidak dari bahasa browser. Kalau negara itu tidak punya stasiun, daftar kembali ke Indonesia.
 - Favorit dan daftar Baru diputar (8 stasiun terakhir) disimpan di `localStorage` browser, jadi tidak ada data pengguna yang dikirim ke server.
 - Pengatur waktu tidur (Sleep Timer): hentikan siaran otomatis sesudah 15, 30, 45, atau 60 menit, dengan penurunan volume bertahap (fade out) 5 detik sebelum waktu habis.
+- Volume naik bertahap selama 3 detik tiap kali stasiun mulai diputar, supaya suara tidak langsung keras kalau volume sistem masih tinggi.
 - Pintasan keyboard: `/` cari, `Spasi` putar atau stop, `N` dan `P` pindah stasiun, `M` bisukan.
 - Stream yang terputus saat sedang diputar disambung ulang otomatis sampai lima kali, dengan jeda 1, 2, 4, 8, lalu 15 detik. Selama menyambung ulang, sisa audio di buffer tetap diputar. Kalau perangkat offline, percobaan ditunda sampai jaringan tersambung lagi.
 - Mendukung playlist `.pls` dan `.m3u` audio biasa yang diekstrak langsung ke URL stream siarannya.
