@@ -1,0 +1,36 @@
+# Build ulang produksi seminggu sekali supaya halaman daftar radio memakai data Radio Browser
+# terbaru, tanpa menunggu push berikutnya ke main.
+#
+# Workflow ini hanya memanggil Deploy Hook Cloudflare Pages untuk branch main. Build-nya tetap
+# dijalankan Cloudflare Pages, sama dengan deploy dari push.
+#
+# Secret yang dibutuhkan: CF_PAGES_DEPLOY_HOOK, berisi URL dari Cloudflare dashboard >
+# Workers & Pages > dengaran > Settings > Builds > Deploy hooks. Kalau secret belum diisi,
+# workflow berhenti dengan pesan, bukan diam-diam lolos.
+#
+# GitHub menonaktifkan workflow terjadwal di repo publik sesudah 60 hari tanpa aktivitas repo.
+# Kalau itu terjadi, aktifkan lagi dari tab Actions.
+
+name: Rebuild
+
+on:
+  schedule:
+    # Senin 02:00 UTC (09:00 WIB).
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  deploy-hook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Cloudflare Pages deploy hook
+        env:
+          DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::Secret CF_PAGES_DEPLOY_HOOK belum diisi."
+            exit 1
+          fi
+          curl --fail --silent --show-error --request POST "$DEPLOY_HOOK"
