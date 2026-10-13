@@ -6,6 +6,7 @@ Catatan untuk mengubah kode Dengaran: struktur folder, server lokal, build, hala
 
 ```
 src/                     sumber aplikasi (index.html, styles.css, app.js)
+src/blocklist.json       stasiun dan tag yang disembunyikan, dibaca app.js dan build
 src/vendor/              library pihak ketiga yang dimuat saat dibutuhkan (hls.js)
 assets/                  favicon, apple-touch-icon, gambar preview og-image
 scripts/build_public.py  script build ke public/
@@ -26,7 +27,7 @@ bin/dev --public     # build ke public/ lalu sajikan versi minify
 bin/dev 3000         # port lain, atau PORT=3000 bin/dev
 ```
 
-Halaman daftar radio hanya ada di hasil build, jadi buka dengan `bin/dev --public`. Server lokal berbeda dengan produksi dalam dua hal. Karena localhost bukan HTTPS, stasiun HTTP ikut tampil di pencarian. `public/_headers` juga tidak dibaca, jadi perubahan CSP dan cache baru bisa dicek sesudah deploy.
+Halaman daftar radio hanya ada di hasil build, jadi buka dengan `bin/dev --public`. Di `src/`, `app.js` dimuat sebagai ES module yang meng-import `blocklist.json`, jadi `bin/dev` tanpa `--public` butuh browser yang mendukung import JSON (Chrome 123, Safari 17.2, Firefox 138, atau versi sesudahnya). Hasil build tidak memakai module: bun memasukkan isi JSON ke satu file `app.<hash>.min.js`. Server lokal berbeda dengan produksi dalam dua hal. Karena localhost bukan HTTPS, stasiun HTTP ikut tampil di pencarian. `public/_headers` juga tidak dibaca, jadi perubahan CSP dan cache baru bisa dicek sesudah deploy.
 
 Output script berwarna di terminal. Isi `NO_COLOR=1` untuk menonaktifkannya.
 
@@ -34,7 +35,7 @@ Output script berwarna di terminal. Isi `NO_COLOR=1` untuk menonaktifkannya.
 
 `bin/build` menjalankan `python3 scripts/build_public.py`, yang mengisi `public/` dengan:
 
-- CSS dan JS versi minify, dengan hash isi di nama file (`styles.<hash>.min.css`, `app.<hash>.min.js`). JS di-minify dengan Bun. Kalau Bun tidak ada di PATH, `app.js` disalin tanpa minify dan build menulis peringatan. Cloudflare Pages memasang Bun lewat variabel `BUN_VERSION`.
+- CSS dan JS versi minify, dengan hash isi di nama file (`styles.<hash>.min.css`, `app.<hash>.min.js`). JS di-minify dengan Bun. Kalau Bun tidak ada di PATH, `app.js` disalin tanpa minify sebagai ES module bersama `blocklist.json`, dan build menulis peringatan. Cloudflare Pages memasang Bun lewat variabel `BUN_VERSION`.
 - `index.html` dengan tag SEO berisi URL absolut dari `SITE_URL`, plus script Cloudflare Web Analytics kalau `CF_ANALYTICS_TOKEN` terisi.
 - halaman daftar radio dan `404.html` dengan tag `<head>` bersama (warna tema, ikon, `og:site_name`). Tag ini ditulis sekali di `src/index.html`, di antara penanda `head:shared` dan `/head:shared`, lalu disalin oleh build.
 - `sitemap.xml`, `robots.txt`, aset dari `assets/`, salinan `src/vendor/`, dan `third-party-notices.txt`.
@@ -48,7 +49,7 @@ Halaman per kota dan genre didaftarkan di `LANDING_PAGES` di `scripts/build_publ
 
 - Isinya stasiun Indonesia HTTPS dari Radio Browser, diurutkan dari jumlah klik terbanyak, maksimal 100 per halaman. Halaman dengan kurang dari 8 stasiun tidak ditulis.
 - Entri ganda digabung kalau kata di namanya sama, tanpa melihat urutan dan huruf besar (`Jak FM 101` dan `JAK 101 FM`).
-- Stasiun di `BLOCKED_STATION_IDS` dan `BLOCKED_TAGS` di `src/app.js` ikut disaring.
+- Stasiun dan tag di `src/blocklist.json` ikut disaring.
 - Paragraf ringkasan di tiap halaman dihitung dari datanya: jumlah stasiun, yang paling sering diputar, kota atau genre terbanyak, dan bitrate.
 
 Tiap stasiun menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` menyiapkan stasiun itu di player tanpa memutarnya.
@@ -64,4 +65,6 @@ Situs di-deploy oleh Cloudflare Pages yang terhubung ke repo ini, dengan build c
 
 ## Menyembunyikan stasiun
 
-Tambahkan `stationuuid` stasiun ke `BLOCKED_STATION_IDS` di `src/app.js`. Cara mencari UUID-nya ada di komentar di atas konstanta tersebut. Stasiun itu hilang dari app dan dari halaman daftar radio di build berikutnya.
+Tambahkan satu objek ke `stations` di `src/blocklist.json`, dengan `id` berisi `stationuuid` dari Radio Browser. `name`, `date`, dan `reason` tidak dibaca kode, hanya catatan. Cara mencari UUID-nya ada di komentar di atas `blockedStationIds` di `src/app.js`. Stasiun itu hilang dari app dan dari halaman daftar radio di build berikutnya. Isi file yang tidak sesuai bentuknya menghentikan build.
+
+Stasiun dengan salah satu tag di `tags` juga disembunyikan. Tag dicocokkan persis, bukan potongan kata.

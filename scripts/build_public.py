@@ -48,7 +48,9 @@ LANDING_LINKS_MARKER = "<!-- seo:landing-links diisi scripts/build_public.py -->
 SHARED_HEAD_START = "<!-- head:shared, disalin scripts/build_public.py ke halaman daftar radio dan 404.html -->"
 SHARED_HEAD_END = "<!-- /head:shared -->"
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
-JS_TAG = '<script defer src="app.js"></script>'
+JS_TAG = '<script type="module" src="app.js"></script>'
+# Stasiun dan tag yang disembunyikan. Di-import app.js dan dibaca build untuk halaman daftar radio.
+BLOCKLIST_FILE = "blocklist.json"
 ASSET_FILES = ["favicon.svg", "favicon-48.png", "apple-touch-icon.png", "og-image.png"]
 # Library pihak ketiga yang dimuat app.js saat dibutuhkan. Disalin apa adanya, tanpa minify ulang.
 VENDOR_DIR = SRC_DIR / "vendor"
@@ -184,8 +186,9 @@ def minify_js_bun(path):
     """Minify dengan bun. Mengembalikan None kalau bun tidak ada di PATH. Gagalnya bun build
     menaikkan ValueError, supaya JS yang tidak bisa di-parse menghentikan build.
 
-    app.js tidak punya import, jadi bun hanya me-minify satu file tanpa node_modules. Format iife
-    membungkus semua deklarasi top-level; aman karena index.html tidak punya handler inline.
+    app.js hanya meng-import blocklist.json, jadi bun memasukkan isi JSON itu ke satu file tanpa
+    node_modules. Format iife membungkus semua deklarasi top-level; aman karena index.html tidak
+    punya handler inline.
     """
     bun = shutil.which("bun")
     if bun is None:
@@ -305,41 +308,34 @@ def not_found_page(css_name, head):
 """
 
 
-def js_string_list(js_source, start_pattern):
-    """Isi string dari array literal di app.js. Dipakai supaya daftar blokir hanya ditulis di satu
-    tempat (src/app.js).
+def load_blocklist():
+    """UUID stasiun dan tag dari src/blocklist.json, huruf kecil semua. Isi yang tidak sesuai
+    bentuknya menghentikan build: daftar blokir yang terbaca kosong akan menampilkan stasiun yang
+    seharusnya disembunyikan di halaman daftar radio."""
+    path = SRC_DIR / BLOCKLIST_FILE
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        fail(f"{path} tidak bisa dibaca: {error}")
 
-    Dibaca karakter per karakter, bukan dengan regex: komentar // boleh memuat "]" atau tanda kutip,
-    dan string boleh memakai kutip tunggal atau ganda. Array yang tidak ditutup menghentikan build,
-    karena daftar blokir yang terbaca kosong akan menampilkan stasiun yang seharusnya disembunyikan.
-    """
-    match = re.search(start_pattern + r"\s*\[", js_source)
-    if match is None:
-        fail(f"{start_pattern} tidak ditemukan di src/app.js")
+    stations = data.get("stations") if isinstance(data, dict) else None
+    tags = data.get("tags") if isinstance(data, dict) else None
+    if not isinstance(stations, list) or not isinstance(tags, list):
+        fail(f'{path} harus berupa objek dengan array "stations" dan "tags".')
 
-    values = set()
-    i = match.end()
-    while i < len(js_source):
-        char = js_source[i]
-        if js_source.startswith("//", i):
-            newline = js_source.find("\n", i)
-            i = len(js_source) if newline == -1 else newline
-        elif js_source.startswith("/*", i):
-            end = js_source.find("*/", i + 2)
-            if end == -1:
-                break
-            i = end + 2
-        elif char in "'\"":
-            end = js_source.find(char, i + 1)
-            if end == -1:
-                break
-            values.add(js_source[i + 1:end].lower())
-            i = end + 1
-        elif char == "]":
-            return values
-        else:
-            i += 1
-    fail(f"Array sesudah {start_pattern} di src/app.js tidak bisa dibaca sampai tanda ] penutup.")
+    ids = set()
+    for index, station in enumerate(stations):
+        station_id = station.get("id") if isinstance(station, dict) else None
+        if not isinstance(station_id, str) or not station_id.strip():
+            fail(f'{path}: stations[{index}] tidak punya "id" berisi stationuuid.')
+        ids.add(station_id.strip().lower())
+
+    blocked_tags = set()
+    for index, tag in enumerate(tags):
+        if not isinstance(tag, str) or not tag.strip():
+            fail(f"{path}: tags[{index}] harus string yang tidak kosong.")
+        blocked_tags.add(tag.strip().lower())
+    return ids, blocked_tags
 
 
 def station_tags(station):
@@ -367,11 +363,9 @@ def station_state(station):
     return state.title() if state.islower() else state
 
 
-def fetch_landing_stations(js_source):
+def fetch_landing_stations(blocked_ids, blocked_tags):
     """Stasiun untuk halaman daftar radio. Build berhenti kalau semua server API gagal: deploy
     sebelumnya di Cloudflare Pages tetap dipakai, daripada halaman ini hilang dari situs."""
-    blocked_ids = js_string_list(js_source, r"const BLOCKED_STATION_IDS =")
-    blocked_tags = js_string_list(js_source, r"const BLOCKED_TAGS = new Set\(")
 
     errors = []
     for host in API_HOSTS:
@@ -720,6 +714,7 @@ def main():
         if not (SRC_DIR / name).exists():
             fail(f"File sumber tidak ditemukan: {SRC_DIR / name}")
 
+    blocked_ids, blocked_tags = load_blocklist()
     html = (SRC_DIR / "index.html").read_text(encoding="utf-8")
     css_source = (SRC_DIR / "styles.css").read_text(encoding="utf-8")
     js_source = (SRC_DIR / "app.js").read_text(encoding="utf-8")
@@ -739,14 +734,15 @@ def main():
         js = minify_js_bun(SRC_DIR / "app.js")
     except ValueError as error:
         fail(f"Minify JS gagal: {error}")
-    # bun tidak ada di PATH: app.js dipakai apa adanya. Hasilnya benar, hanya lebih besar.
+    # bun tidak ada di PATH: app.js dipakai apa adanya sebagai module, dan blocklist.json ikut
+    # disalin karena di-import app.js. Hasilnya benar, hanya lebih besar.
     js_minified = js is not None
     if not js_minified:
         js = js_source
 
     head = shared_head(html)
     built_on = date.today()
-    landing_pages = landing_pages_with_stations(fetch_landing_stations(js_source))
+    landing_pages = landing_pages_with_stations(fetch_landing_stations(blocked_ids, blocked_tags))
 
     css_name = f"styles.{content_hash(css)}.min.css"
     # Akhiran .min.js tetap dipakai tanpa bun, supaya aturan cache di _headers tetap berlaku.
@@ -755,7 +751,10 @@ def main():
     html = html.replace(SEO_MARKER, seo_tags(html))
     html = html.replace(LANDING_LINKS_MARKER, landing_links_section(landing_pages))
     html = html.replace(CSS_TAG, f'<link rel="stylesheet" href="{css_name}" />')
-    js_tags = f'<script defer src="{js_name}"></script>'
+    if js_minified:
+        js_tags = f'<script defer src="{js_name}"></script>'
+    else:
+        js_tags = f'<script type="module" src="{js_name}"></script>'
     if CF_ANALYTICS_TOKEN:
         js_tags += "\n  " + analytics_tag()
     html = html.replace(JS_TAG, js_tags)
@@ -774,6 +773,8 @@ def main():
             landing_page_html(page, landing_pages, css_name, built_on, head), encoding="utf-8"
         )
     (OUTPUT_DIR / js_name).write_text(js, encoding="utf-8")
+    if not js_minified:
+        shutil.copyfile(SRC_DIR / BLOCKLIST_FILE, OUTPUT_DIR / BLOCKLIST_FILE)
 
     for name in ASSET_FILES:
         source = ASSETS_DIR / name

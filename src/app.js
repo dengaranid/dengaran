@@ -1,5 +1,8 @@
 "use strict";
 
+// Satu-satunya import: daftar stasiun dan tag yang disembunyikan (lihat blockedStationIds).
+import blocklist from "./blocklist.json" with { type: "json" };
+
 // Radio Browser meminta klien mengambil daftar server dari all.api, mengacaknya, lalu pindah ke
 // server berikutnya kalau satu gagal. API_MIRRORS dipakai kalau daftar itu gagal diambil.
 const API_SERVER_LIST_URL = "https://all.api.radio-browser.info/json/servers";
@@ -18,24 +21,19 @@ const SITE_INFO = {
   legalUpdated: "13 Oktober 2026"
 };
 
-// Stasiun yang disembunyikan atas permintaan pemilik stasiun atau pemegang hak cipta.
-// Isi dengan stationuuid dari Radio Browser. Cara mencarinya: buka
-// https://de1.api.radio-browser.info/json/stations/byname/<nama stasiun>
+// Stasiun dan tag yang disembunyikan, dibaca juga oleh scripts/build_public.py untuk halaman
+// daftar radio. Stasiun di "stations" disembunyikan atas permintaan pemilik stasiun atau pemegang
+// hak cipta, atau karena tidak bisa diputar; "id" diisi stationuuid dari Radio Browser. Cara
+// mencarinya: buka https://de1.api.radio-browser.info/json/stations/byname/<nama stasiun>
 // lalu salin nilai "stationuuid" milik stasiun yang dimaksud.
 // Stasiun di daftar ini tidak muncul di pencarian, Favorit, Baru diputar, maupun player.
-// Sesudah mengubah daftar ini, jalankan python3 scripts/build_public.py dan deploy ulang.
-const BLOCKED_STATION_IDS = [
-  // "contoh-uuid-0000-0000-000000000000", // nama stasiun, tanggal permintaan
-  // CNN Indonesia, 2026-10-13: server menolak Referer dari domain lain (403), dan HLS bawaan
-  // Chrome macet saat pindah bitrate. Tidak bisa diputar dari Dengaran.
-  "6f424852-4bf4-431e-a715-3fcb553095b3",
-];
-const blockedStationIds = new Set(BLOCKED_STATION_IDS.map(id => String(id).toLowerCase()));
+// Di produksi bun memasukkan isi JSON ke bundle, jadi tidak ada request tambahan.
+const blockedStationIds = new Set(blocklist.stations.map(station => String(station.id).toLowerCase()));
 
-// Stasiun dengan salah satu tag ini disembunyikan dari pencarian, Favorit, dan Baru diputar.
+// Stasiun dengan salah satu tag di "tags" disembunyikan dari pencarian, Favorit, dan Baru diputar.
 // Dicocokkan dengan tag persis, bukan potongan nama: "adult" tidak dipakai karena di Radio
 // Browser berarti format musik (adult contemporary), dan "sex" ada di nama seperti "BBC Essex".
-const BLOCKED_TAGS = new Set(["erotic", "porn", "xxx", "nsfw"]);
+const BLOCKED_TAGS = new Set(blocklist.tags.map(tag => String(tag).toLowerCase()));
 
 function isBlockedStation(station) {
   if (!station) return false;

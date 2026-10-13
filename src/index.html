@@ -551,6 +551,7 @@
     </div>
   </dialog>
 
-  <script defer src="app.js"></script>
+  <!-- Module karena app.js meng-import blocklist.json. Build menggantinya dengan bundle bun. -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
