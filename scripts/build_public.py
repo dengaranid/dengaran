@@ -80,6 +80,9 @@ LANDING_USER_AGENT = "Dengaran-build/1.0 (+https://github.com/dengaranid/dengara
 LANDING_MAX_STATIONS = 100
 # Halaman dengan stasiun lebih sedikit dari ini tidak ditulis, dan tidak masuk sitemap.
 LANDING_MIN_STATIONS = 8
+# Tag yang tidak menyebut genre, jadi tidak dihitung di ringkasan halaman.
+LANDING_GENERIC_TAGS = {"indonesia", "indonesian", "bahasa indonesia", "music", "musik", "radio",
+                        "fm", "am", "id", "local", "online", "streaming"}
 LANDING_OPEN_HINT = (
     "Pilih stasiun untuk membukanya di pemutar Dengaran, lalu tekan Putar. Urutannya dari stasiun "
     "yang paling sering diputar pendengar Radio Browser."
@@ -87,46 +90,47 @@ LANDING_OPEN_HINT = (
 
 # kind "city": dicocokkan dengan nama dan kolom state stasiun (regex, awal kata).
 # kind "genre": dicocokkan dengan tag persis. kind "all": semua stasiun.
+# "tab": label pendek di baris tab navigasi antar halaman.
 LANDING_PAGES = [
-    {"slug": "radio-online-indonesia", "kind": "all", "heading": "Radio Online Indonesia",
+    {"slug": "radio-online-indonesia", "tab": "Semua", "kind": "all", "heading": "Radio Online Indonesia",
      "intro": "Radio online dan radio streaming dari seluruh Indonesia yang bisa didengar gratis di browser."},
-    {"slug": "radio-online-jakarta", "kind": "city", "heading": "Radio Online Jakarta",
+    {"slug": "radio-online-jakarta", "tab": "Jakarta", "kind": "city", "heading": "Radio Online Jakarta",
      "pattern": r"\bjakarta",
      "intro": "Stasiun radio Jakarta yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-online-bandung", "kind": "city", "heading": "Radio Online Bandung dan Jawa Barat",
+    {"slug": "radio-online-bandung", "tab": "Bandung", "kind": "city", "heading": "Radio Online Bandung dan Jawa Barat",
      "pattern": r"\bbandung|\bjawa barat|\bwest java",
      "intro": "Stasiun radio dari Bandung dan kota lain di Jawa Barat yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-online-yogyakarta", "kind": "city", "heading": "Radio Online Yogyakarta",
+    {"slug": "radio-online-yogyakarta", "tab": "Yogyakarta", "kind": "city", "heading": "Radio Online Yogyakarta",
      "pattern": r"\byogya|\bjogja|ꦗꦺꦴꦒ꧀ꦗꦏꦂꦠ",
      "intro": "Stasiun radio Yogyakarta yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-online-bali", "kind": "city", "heading": "Radio Online Bali",
+    {"slug": "radio-online-bali", "tab": "Bali", "kind": "city", "heading": "Radio Online Bali",
      "pattern": r"\bbali\b|\bdenpasar",
      "intro": "Stasiun radio dari Bali yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-online-surabaya", "kind": "city", "heading": "Radio Online Surabaya",
+    {"slug": "radio-online-surabaya", "tab": "Surabaya", "kind": "city", "heading": "Radio Online Surabaya",
      "pattern": r"\bsurabaya",
      "intro": "Stasiun radio Surabaya yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-online-semarang", "kind": "city", "heading": "Radio Online Semarang",
+    {"slug": "radio-online-semarang", "tab": "Semarang", "kind": "city", "heading": "Radio Online Semarang",
      "pattern": r"\bsemarang",
      "intro": "Stasiun radio Semarang yang siarannya bisa didengar langsung di browser."},
-    {"slug": "radio-pop", "kind": "genre", "heading": "Radio Pop Online",
+    {"slug": "radio-pop", "tab": "Pop", "kind": "genre", "heading": "Radio Pop Online",
      "tags": {"pop", "pop music", "hits", "top 40", "contemporary hits radio"},
      "intro": "Radio streaming musik pop, top 40, dan lagu hits dari stasiun Indonesia."},
-    {"slug": "radio-rock", "kind": "genre", "heading": "Radio Rock Online",
+    {"slug": "radio-rock", "tab": "Rock", "kind": "genre", "heading": "Radio Rock Online",
      "tags": {"rock", "pop rock", "alternative", "metal"},
      "intro": "Radio streaming rock, alternative, dan metal dari stasiun Indonesia."},
-    {"slug": "radio-berita", "kind": "genre", "heading": "Radio Berita Online",
+    {"slug": "radio-berita", "tab": "Berita", "kind": "genre", "heading": "Radio Berita Online",
      "tags": {"news", "local news", "talk", "talk show radio"},
      "intro": "Radio berita dan talk show Indonesia: berita nasional, berita lokal, dan siaran bincang-bincang."},
-    {"slug": "radio-daerah", "kind": "genre", "heading": "Radio Budaya dan Musik Daerah",
+    {"slug": "radio-daerah", "tab": "Daerah", "kind": "genre", "heading": "Radio Budaya dan Musik Daerah",
      "tags": {"sunda", "jawa", "javanese", "campursari", "local music", "culture"},
      "intro": "Radio dengan siaran budaya dan musik daerah: Sunda, Jawa, campursari, dan musik lokal lain."},
-    {"slug": "radio-dangdut", "kind": "genre", "heading": "Radio Dangdut Online",
+    {"slug": "radio-dangdut", "tab": "Dangdut", "kind": "genre", "heading": "Radio Dangdut Online",
      "tags": {"dangdut", "koplo", "campursari"},
      "intro": "Radio streaming dangdut, dangdut koplo, dan campursari dari stasiun Indonesia."},
-    {"slug": "radio-nostalgia", "kind": "genre", "heading": "Radio Nostalgia Online",
+    {"slug": "radio-nostalgia", "tab": "Nostalgia", "kind": "genre", "heading": "Radio Nostalgia Online",
      "tags": {"70s", "80s", "90s", "oldies", "nostalgia", "classic hits"},
      "intro": "Radio yang memutar lagu lawas dari era 70-an, 80-an, dan 90-an."},
-    {"slug": "radio-rohani", "kind": "genre", "heading": "Radio Rohani Online",
+    {"slug": "radio-rohani", "tab": "Rohani", "kind": "genre", "heading": "Radio Rohani Online",
      "tags": {"religious", "religion", "islam", "islamic", "quran", "dakwah", "christian"},
      "intro": "Radio rohani dan religi dari stasiun Indonesia, termasuk siaran Islam dan Kristen."},
 ]
@@ -484,6 +488,27 @@ def station_tags(station):
     return [tag.strip().lower() for tag in (station.get("tags") or "").split(",") if tag.strip()]
 
 
+def station_name_key(name):
+    """Kunci entri ganda: kata dan angka di nama, tanpa membedakan huruf besar dan urutan kata,
+    jadi "Jak FM 101" dan "JAK 101 FM" dianggap satu stasiun. Nama tanpa huruf atau angka
+    sama sekali (misalnya hanya emoji) memakai namanya sendiri sebagai kunci."""
+    words = re.findall(r"\w+", name.lower())
+    return " ".join(sorted(set(words))) if words else name.lower()
+
+
+def station_state(station):
+    """Kolom state yang bisa ditampilkan, atau "" kalau kosong atau isinya nama negara.
+    Isi kolom ini bebas diisi pengguna Radio Browser, jadi dirapikan supaya penulisan berbeda
+    untuk tempat yang sama terhitung satu: bagian sesudah koma dibuang ("Bandung, West Java"),
+    awalan DKI dan Daerah Istimewa dibuang ("DKI Jakarta"), dan yang ditulis huruf kecil semua
+    ("parepare") diubah ke huruf kapital di awal kata."""
+    state = " ".join((station.get("state") or "").split(",")[0].split())
+    state = re.sub(r"^(dki|daerah istimewa)\s+", "", state, flags=re.IGNORECASE)
+    if state.lower() == "indonesia":
+        return ""
+    return state.title() if state.islower() else state
+
+
 def fetch_landing_stations(js_source):
     """Stasiun untuk halaman daftar radio. Build berhenti kalau semua server API gagal: deploy
     sebelumnya di Cloudflare Pages tetap dipakai, daripada halaman ini hilang dari situs."""
@@ -520,10 +545,10 @@ def fetch_landing_stations(js_source):
             continue
         if blocked_tags.intersection(station_tags(station)):
             continue
-        # Radio Browser memuat banyak entri ganda bernama sama: yang kliknya terbanyak dipakai.
-        # Kalau entri itu tidak mengisi state, state dari entri ganda dipakai, supaya stasiunnya
-        # tetap masuk halaman kotanya.
-        key = name.lower()
+        # Radio Browser memuat banyak entri ganda: yang kliknya terbanyak dipakai. Kalau entri itu
+        # tidak mengisi state, state dari entri ganda dipakai, supaya stasiunnya tetap masuk
+        # halaman kotanya.
+        key = station_name_key(name)
         kept = kept_by_name.get(key)
         if kept is not None:
             if not (kept.get("state") or "").strip() and (station.get("state") or "").strip():
@@ -550,14 +575,15 @@ def landing_pages_with_stations(stations):
         if len(matched) < LANDING_MIN_STATIONS:
             print(paint(f"  Halaman /{page['slug']} dilewati: hanya {len(matched)} stasiun", "33"))
             continue
-        pages.append({**page, "stations": matched[:LANDING_MAX_STATIONS], "total": len(matched)})
+        pages.append({**page, "stations": matched[:LANDING_MAX_STATIONS], "matched": matched,
+                      "total": len(matched)})
     return pages
 
 
 def station_meta(station):
     """Kota, tiga tag pertama, codec, dan bitrate, dipisah titik tengah."""
     parts = []
-    state = (station.get("state") or "").strip()
+    state = station_state(station)
     if state:
         parts.append(state)
     # Tag di Radio Browser bebas diisi; tag yang sangat panjang biasanya bukan genre.
@@ -574,27 +600,110 @@ def station_meta(station):
     return " · ".join(parts)
 
 
-def landing_nav_html(pages, current_slug=None, heading_tag="h2"):
-    """Link antar halaman daftar radio, dikelompokkan kota dan genre."""
-    def links(kinds):
-        # Mengembalikan "" kalau semua halaman kelompok ini dilewati karena stasiunnya terlalu sedikit.
+def join_id(items):
+    """["A", "B", "C"] menjadi "A, B, dan C"."""
+    if len(items) <= 2:
+        return " dan ".join(items)
+    return ", ".join(items[:-1]) + ", dan " + items[-1]
+
+
+def top_counts(values, limit=3, minimum=2):
+    """Nilai yang paling sering muncul, tanpa membedakan huruf besar, dengan ejaan yang paling
+    sering dipakai. Nilai yang muncul kurang dari `minimum` kali tidak ikut."""
+    counts, spelling = {}, {}
+    for value in values:
+        key = value.lower()
+        counts[key] = counts.get(key, 0) + 1
+        spelling.setdefault(key, {})
+        spelling[key][value] = spelling[key].get(value, 0) + 1
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return [(max(spelling[key], key=spelling[key].get), count)
+            for key, count in ranked if count >= minimum][:limit]
+
+
+def landing_summary(page):
+    """Paragraf ringkasan yang dihitung dari data stasiun halaman ini, supaya tiap halaman
+    punya teks sendiri, bukan hanya kalimat pembuka dan daftar link."""
+    stations = page["matched"]
+    total = len(stations)
+    names = [station["name"].strip() for station in stations[:3]]
+    sentences = [f"Halaman ini memuat {total} stasiun. Yang paling sering diputar: {join_id(names)}."]
+
+    # Halaman kota tidak menyebut kota lagi; halaman genre tidak menyebut genre lagi.
+    if page["kind"] != "city":
+        cities = top_counts(state for state in map(station_state, stations) if state)
+        if cities:
+            listed = [f"{name} ({count} stasiun)" if i == 0 else f"{name} ({count})"
+                      for i, (name, count) in enumerate(cities)]
+            sentences.append(f"Kota dan provinsi yang paling banyak muncul: {join_id(listed)}.")
+    if page["kind"] != "genre":
+        # Minimal 3: tag yang hanya muncul di 2 stasiun sering berupa slogan, bukan genre.
+        genres = top_counts(
+            (tag for station in stations for tag in station_tags(station)
+             if len(tag) <= 24 and tag not in LANDING_GENERIC_TAGS),
+            minimum=3,
+        )
+        if genres:
+            sentences.append(
+                "Genre yang paling sering ditulis: "
+                + join_id([f"{name} ({count})" for name, count in genres]) + "."
+            )
+
+    # bitrate 0 atau kosong berarti tidak diketahui, jadi tidak dihitung di kedua sisi.
+    known = [station for station in stations if station.get("bitrate")]
+    high = sum(1 for station in known if station["bitrate"] >= 128)
+    codecs = top_counts(
+        codec for codec in ((station.get("codec") or "").strip().upper() for station in stations)
+        if codec and codec != "UNKNOWN"
+    )
+    if known and codecs:
+        sentences.append(
+            f"Dari {len(known)} stasiun yang mencantumkan bitrate, {high} siaran pada 128 kbps "
+            f"atau lebih. Format yang paling banyak dipakai: {codecs[0][0]}."
+        )
+    return " ".join(sentences)
+
+
+def landing_tabs_html(pages, current_slug):
+    """Baris tab Kota dan Genre di atas daftar stasiun. Tiap tab adalah link biasa ke halaman
+    lain, jadi bisa dibaca mesin pencari tanpa JS. Tab halaman yang sedang dibuka ditandai
+    aria-current."""
+    rows = []
+    for label, kinds in [("Kota", {"all", "city"}), ("Genre", {"genre"})]:
         items = []
         for page in pages:
             if page["kind"] not in kinds:
                 continue
-            label = html_lib.escape(page["heading"])
-            if page["slug"] == current_slug:
-                items.append(f'<li><a href="/{page["slug"]}" aria-current="page">{label}</a></li>')
-            else:
-                items.append(f'<li><a href="/{page["slug"]}">{label}</a></li>')
-        return "\n".join(items)
+            tab = html_lib.escape(page["tab"])
+            current = ' aria-current="page"' if page["slug"] == current_slug else ""
+            items.append(f'<li><a class="landing-tab" href="/{page["slug"]}"{current}>{tab}</a></li>')
+        # Kelompok yang semua halamannya dilewati karena stasiunnya terlalu sedikit tidak ditulis.
+        if items:
+            rows.append(
+                f'      <div class="landing-tab-row">\n'
+                f'        <span class="landing-tab-label">{label}</span>\n'
+                f'        <ul class="landing-tab-list">\n          '
+                + "\n          ".join(items)
+                + "\n        </ul>\n      </div>"
+            )
+    return "\n".join(rows)
+
+
+def landing_nav_html(pages):
+    """Link antar halaman daftar radio di dialog Tentang, dikelompokkan kota dan genre."""
+    def links(kinds):
+        # Mengembalikan "" kalau semua halaman kelompok ini dilewati karena stasiunnya terlalu sedikit.
+        return "\n".join(
+            f'<li><a href="/{page["slug"]}">{html_lib.escape(page["heading"])}</a></li>'
+            for page in pages if page["kind"] in kinds
+        )
 
     groups = [("Radio online per kota", {"all", "city"}), ("Radio streaming per genre", {"genre"})]
     parts = []
     for title, kinds in groups:
         items = links(kinds)
         if items:
-            parts.append(f'<{heading_tag}>{title}</{heading_tag}>\n<ul class="landing-links">\n{items}\n</ul>')
+            parts.append(f'<h3>{title}</h3>\n<ul class="landing-links">\n{items}\n</ul>')
     return "\n".join(parts)
 
 
@@ -603,14 +712,16 @@ def landing_page_html(page, pages, css_name, built_on):
     heading = html_lib.escape(page["heading"])
     title = f"{page['heading']}: Dengar Gratis di Browser | Dengaran"
     shown = len(page["stations"])
+    top_names = join_id([station["name"].strip() for station in page["stations"][:2]])
     description = (
-        f"Dengar {page['heading']} gratis di browser: {shown} stasiun, "
-        "tanpa iklan, tanpa cookie, tanpa daftar akun."
+        f"Dengar {page['heading']} gratis di browser: {shown} stasiun, termasuk {top_names}. "
+        "Tanpa iklan, tanpa cookie, tanpa daftar akun."
     )
+    # Jumlah semua stasiun sudah disebut di ringkasan; di sini hanya batas daftar kalau terpotong.
     if page["total"] > shown:
-        count_text = f"{shown} dari {page['total']} stasiun yang paling sering diputar."
+        count_text = f"Daftar di bawah memuat {shown} yang paling sering diputar. "
     else:
-        count_text = f"{shown} stasiun."
+        count_text = ""
     updated = f"{built_on.day} {MONTHS_ID[built_on.month - 1]} {built_on.year}"
 
     rows = []
@@ -678,20 +789,20 @@ def landing_page_html(page, pages, css_name, built_on):
   </header>
 
   <main class="landing">
-    <nav class="landing-breadcrumb" aria-label="Lokasi halaman">
-      <a href="/">Dengaran</a> <span aria-hidden="true">/</span> <span>{heading}</span>
+    <!-- Tab di atas judul: tiap tab membuka halaman lain, jadi semua yang ikut berubah (judul,
+         teks, dan daftar) ada di bawahnya. Breadcrumb hanya ditulis di JSON-LD. -->
+    <nav class="landing-tabs" aria-label="Daftar radio per kota dan genre">
+{landing_tabs_html(pages, page["slug"])}
     </nav>
+
     <h1>{heading}</h1>
     <p class="landing-intro">{html_lib.escape(page["intro"])} {LANDING_OPEN_HINT}</p>
-    <p class="landing-count">{count_text} Data dari Radio Browser, diperbarui {updated}.</p>
+    <p class="landing-summary">{html_lib.escape(landing_summary(page))}</p>
+    <p class="landing-count">{count_text}Data dari Radio Browser, diperbarui {updated}.</p>
 
     <ol class="landing-list">
 {chr(10).join(rows)}
     </ol>
-
-    <nav class="landing-nav" aria-label="Daftar radio lain">
-{landing_nav_html(pages, page["slug"])}
-    </nav>
   </main>
 
   <footer class="landing-footer">
@@ -710,7 +821,7 @@ def landing_links_section(pages):
     """Bagian dialog Tentang yang menautkan halaman daftar radio, supaya Google menemukannya
     dari beranda, tidak hanya dari sitemap."""
     return f"""<div class="dialog-section">
-{landing_nav_html(pages, heading_tag="h3")}
+{landing_nav_html(pages)}
         </div>"""
 
 
