@@ -829,10 +829,12 @@ kbd {
 
 /* Halaman daftar radio per kota dan genre, dibuat scripts/build_public.py. Halaman ini bergulir
    seperti dokumen biasa, tidak memakai tata letak setinggi layar milik .app. */
+/* Latar solid: gradien radial milik body ikut memanjang sepanjang halaman yang bergulir. */
 .landing-body {
   display: block;
   height: auto;
   min-height: 100%;
+  background: var(--bg);
 }
 
 .landing-header,
