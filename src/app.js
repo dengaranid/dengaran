@@ -222,8 +222,15 @@ let stallTimer = null;
 // dikirim sesudah stream dilepas diabaikan berdasarkan nilai ini.
 let streamAttached = false;
 // URL yang benar-benar dipasang ke elemen audio. Bisa berbeda dari station.url kalau URL
-// stasiun adalah playlist .pls atau .m3u yang sudah diekstrak.
+// stasiun adalah playlist .pls atau .m3u yang sudah diekstrak, atau kalau URL http:// diubah
+// ke https:// oleh secureStreamUrl.
 let streamUrl = "";
+// True kalau URL stasiun atau URL hasil playlist aslinya http:// dan diubah ke https://.
+let streamUpgraded = false;
+// True kalau URL berpath / dipasang dengan path /; (lihat shoutcastStreamUrl). Diisi saat
+// percobaan dengan /; dimulai, dan dipertahankan selama sambung ulang supaya sambung ulang
+// tidak kembali ke path / yang gagal.
+let shoutcastPath = false;
 // Fetch playlist yang sedang berjalan. Dibatalkan saat stream dilepas atau diganti.
 let playlistAbortController = null;
 // Instance hls.js untuk stream yang sedang dipasang, dan promise pemuatan script-nya.
@@ -710,7 +717,7 @@ function isInsecureStream(station) {
 
 function insecureBadgeHtml(station) {
   return isInsecureStream(station)
-    ? `<span class="insecure-badge" title="Stream HTTP: bisa diblokir browser di halaman HTTPS">HTTP</span>`
+    ? `<span class="insecure-badge" title="Stream HTTP: diputar lewat HTTPS kalau server stasiun mendukung">HTTP</span>`
     : "";
 }
 
@@ -1119,10 +1126,11 @@ async function togglePlay(stationId) {
   await playStation(station);
 }
 
-async function playStation(station, { reconnect = false } = {}) {
+async function playStation(station, { reconnect = false, shoutcastRetry = false } = {}) {
   clearStreamTimers();
   // Pemutaran yang dimulai pengguna membatalkan sambung ulang yang sedang berjalan.
   if (!reconnect) cancelReconnect();
+  if (!reconnect) shoutcastPath = shoutcastRetry;
   const requestId = ++playRequestId;
 
   currentStation = station;
@@ -1151,8 +1159,9 @@ async function playStation(station, { reconnect = false } = {}) {
     return;
   }
 
-  // Sambung ulang bukan klik baru: jumlah klik di Radio Browser tidak ditambah lagi.
-  if (!reconnect) {
+  // Sambung ulang dan percobaan dengan path /; bukan klik baru: jumlah klik di Radio Browser
+  // tidak ditambah lagi.
+  if (!reconnect && !shoutcastRetry) {
     listenSeconds = 0;
     lastPositionSecond = -1;
     saveJson(LAST_STATION_KEY, station);
@@ -1278,13 +1287,36 @@ function cancelPlaylistFetch() {
   }
 }
 
+// Di halaman HTTPS, URL http:// diblokir CSP (media-src dan connect-src hanya https: dan blob:)
+// sebelum browser sempat mengubahnya sendiri ke https://. Banyak server stream juga melayani
+// HTTPS di host dan port yang sama, jadi URL dicoba sebagai https://. Kalau versi HTTPS gagal,
+// stream gagal seperti biasa dan pesan gagal menyebut stream HTTP.
+function secureStreamUrl(url) {
+  return SECURE_PAGE ? String(url).replace(/^http:/i, "https:") : url;
+}
+
+// Server Shoutcast v2 membalas request browser ke path / dengan redirect ke halaman status
+// (index.html?sid=1), bukan audio, dan Chrome memblokir halaman itu. Path /; di server yang
+// sama mengirim audio. URL dengan path lain, query, atau hash tidak diubah.
+function shoutcastStreamUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname !== "/" || parsed.search || parsed.hash) return url;
+    parsed.pathname = "/;";
+    return parsed.href;
+  } catch (error) {
+    return url;
+  }
+}
+
 // Pasang stream ke elemen audio. Mengganti stream otomatis menghentikan yang sebelumnya.
 // HLS diputar lewat hls.js (Media Source Extensions) kalau browser tidak memutarnya sendiri,
 // misalnya Firefox. Safari dan stream Icecast/MP3 biasa langsung lewat elemen audio.
 async function attachStream(station, requestId) {
   detachStream();
   // Tidak dikosongkan saat stream dilepas: pesan gagal masih membacanya sesudah abortStream.
-  streamUrl = station.url;
+  streamUrl = secureStreamUrl(station.url);
+  streamUpgraded = streamUrl !== station.url;
   streamSeconds = 0;
   lastMediaTime = null;
 
@@ -1313,15 +1345,18 @@ async function attachStream(station, requestId) {
       }
       handleStreamFailure(station);
     });
-    instance.loadSource(station.url);
+    instance.loadSource(streamUrl);
     instance.attachMedia(audioPlayer);
     // Error fatal yang dikirim sinkron di atas sudah melepas stream ini.
     if (requestId !== playRequestId) return;
   } else {
-    const resolvedUrl = await resolvePlaylistUrl(station.url, requestId);
+    const resolvedUrl = await resolvePlaylistUrl(streamUrl, requestId);
     if (requestId !== playRequestId) return;
-    streamUrl = resolvedUrl;
-    audioPlayer.src = resolvedUrl;
+    // URL hasil playlist bisa http:// walau URL playlist-nya https://.
+    streamUrl = secureStreamUrl(resolvedUrl);
+    if (streamUrl !== resolvedUrl) streamUpgraded = true;
+    if (shoutcastPath) streamUrl = shoutcastStreamUrl(streamUrl);
+    audioPlayer.src = streamUrl;
     audioPlayer.load();
   }
   streamAttached = true;
@@ -1397,6 +1432,17 @@ function handleStreamFailure(station, error) {
 
   const wasStreaming = isPlaying || reconnectAttempt > 0;
   const blocked = error && error.name === "NotAllowedError";
+
+  // Stream yang gagal sebelum berbunyi dari URL berpath / dicoba sekali lagi dengan path /;.
+  // Timeout tidak dicoba lagi supaya pengguna tidak menunggu CONNECT_TIMEOUT_MS dua kali.
+  if (
+    !wasStreaming && !blocked && !shoutcastPath && navigator.onLine &&
+    !(error && error.name === "TimeoutError") &&
+    !isHlsStation(station) && shoutcastStreamUrl(streamUrl) !== streamUrl
+  ) {
+    playStation(station, { shoutcastRetry: true });
+    return;
+  }
 
   if (wasStreaming && !blocked && reconnectAttempt < RECONNECT_DELAYS_MS.length) {
     // Stream lama tidak dilepas: sisa buffer, misalnya buffer hls.js sesudah error jaringan
@@ -1553,9 +1599,9 @@ function streamFailureMessage(station, error) {
   if (name === "TimeoutError") {
     return `${station.name} tidak merespons. Coba lagi atau pilih stasiun lain.`;
   }
-  // URL hasil ekstraksi playlist bisa http:// walau URL stasiunnya https://.
-  if (isInsecureStream(station) || isInsecureStream({ url: streamUrl })) {
-    return `${station.name} memakai stream HTTP yang diblokir browser di halaman HTTPS.`;
+  // Stream HTTP sudah dicoba sebagai HTTPS oleh secureStreamUrl dan tetap gagal.
+  if (streamUpgraded) {
+    return `${station.name} memakai stream HTTP. Versi HTTPS-nya sudah dicoba dan tidak bisa diputar.`;
   }
   return `${station.name} tidak bisa diputar. Stasiun mungkin sedang offline.`;
 }

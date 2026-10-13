@@ -33,7 +33,9 @@ State pemutaran disimpan di variabel modul:
 | `reconnectAttempt` | jumlah percobaan sambung ulang yang sudah dijalankan |
 | `onlineTimer` | timer debounce penundaan sambung ulang saat jaringan kembali online |
 | `waitingForNetwork` | sambung ulang ditahan karena perangkat offline |
-| `streamUrl` | URL yang dipasang ke elemen audio, termasuk hasil ekstraksi playlist |
+| `streamUrl` | URL yang dipasang ke elemen audio, termasuk hasil ekstraksi playlist dan hasil `secureStreamUrl` |
+| `streamUpgraded` | URL stasiun atau URL hasil playlist aslinya `http://` dan diubah ke `https://` |
+| `shoutcastPath` | URL berpath `/` dipasang dengan path `/;`, lihat bagian Path `/` di server Shoutcast |
 | `playlistAbortController` | fetch playlist yang sedang berjalan |
 
 Tombol putar hanya punya empat tampilan (`PLAY_STATES`): `idle`, `stopped`, `connecting`, dan `playing`. Tidak ada tombol jeda. Siaran live tidak bisa dilanjutkan dari posisi lama, jadi Putar selalu memuat ulang stream dan mulai dari siaran yang sedang berjalan.
@@ -66,7 +68,7 @@ Langkah `playStation` secara berurutan:
 1. Hapus timer stream. Kalau pemutaran dimulai pengguna, batalkan sambung ulang yang sedang berjalan (`cancelReconnect`).
 2. Naikkan `playRequestId`, set state ke menyambung, hapus tanda gagal stasiun ini dari `failedStations`.
 3. Kalau stasiun AAC, bukan HLS, dan browser menyatakan tidak bisa memutar AAC: hentikan stream sebelumnya dan langsung gagal. Lihat bagian Deteksi AAC.
-4. Kalau bukan sambung ulang: reset `listenSeconds`, simpan stasiun ke `LAST_STATION_KEY`, dan kirim `reportClick` ke Radio Browser. Sambung ulang tidak dihitung sebagai klik baru.
+4. Kalau bukan sambung ulang dan bukan percobaan dengan path `/;`: reset `listenSeconds`, simpan stasiun ke `LAST_STATION_KEY`, dan kirim `reportClick` ke Radio Browser. Sambung ulang tidak dihitung sebagai klik baru.
 5. Pasang `connectTimer` dengan `CONNECT_TIMEOUT_MS`.
 6. `attachStream`, lalu `audioPlayer.play()`.
 7. Kalau berhasil: hapus timer, set `isPlaying`, isi Media Session, tambahkan ke Baru diputar.
@@ -82,6 +84,8 @@ Langkah `playStation` secara berurutan:
 
 `isHlsStation` membaca `station.hls` dari Radio Browser. Favorit yang disimpan sebelum field itu ada dikenali dari URL yang berakhir `.m3u8`.
 
+Sebelum jalur dipilih, `secureStreamUrl` mengubah URL `http://` menjadi `https://` di halaman HTTPS. Lihat bagian HTTPS dan CSP.
+
 Pada URL playlist audio biasa (`.pls` atau `.m3u`), `resolvePlaylistUrl` mengunduh teks playlist dengan batas waktu `PLAYLIST_RESOLVE_TIMEOUT_MS` (4000 ms). Fungsi `parsePlsPlaylist` mengekstrak URL dari baris `File1=...`, sedangkan `parseM3uPlaylist` mengambil baris URL audio pertama non-komentar. Jika respons diblokir CORS atau format tidak valid, URL stasiun asli digunakan sebagai fallback. Fetch playlist dibatalkan (`cancelPlaylistFetch`) saat stream dilepas atau diganti, jadi permintaan yang sudah tidak dipakai tidak tetap berjalan sampai batas waktunya.
 
 Jalur ini jarang dipakai: daftar stasiun memakai `url_resolved` dari Radio Browser, yang biasanya sudah berisi URL audio, bukan playlist. Yang masih melewatinya adalah stasiun yang `url_resolved`-nya tetap berupa playlist.
@@ -89,6 +93,20 @@ Jalur ini jarang dipakai: daftar stasiun memakai `url_resolved` dari Radio Brows
 Pada jalur hls.js, stream sebelumnya dihentikan dulu supaya tidak tetap terdengar selama hls.js diunduh. `loadHls` memuat `HLS_SCRIPT` sekali dan memakai ulang promise-nya. Kalau script gagal dimuat, promise dihapus supaya percobaan berikutnya memuat ulang. Kalau `Hls.isSupported()` false (browser tanpa Media Source Extensions), `attachStream` melempar error dan stream gagal.
 
 Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal bertipe `MEDIA_ERROR` (decode atau buffer Media Source Extensions) dicoba pulihkan sekali per stream dengan `recoverMediaError`. Error fatal lainnya, atau `MEDIA_ERROR` kedua, diteruskan ke `handleStreamFailure`, sama dengan event `error` elemen audio.
+
+### Path `/` di server Shoutcast
+
+Server Shoutcast v2 membalas request browser ke path `/` dengan redirect 302 ke halaman status (`index.html?sid=1`), bukan audio, dan Chrome memblokir halaman itu (`ERR_BLOCKED_BY_ORB`). Path `/;` di server yang sama mengirim audio. Radio Browser tetap menandai URL `/` seperti ini `lastcheckok: 1` karena pengeceknya bukan browser, jadi `hidebroken=true` tidak menyaringnya. Contohnya `http://streaming.girifm.com:8010/`.
+
+URL berpath `/` tidak bisa diubah sejak awal, karena server lain (Icecast, Liquidsoap) bisa memakai path `/` yang memang benar. Karena itu `handleStreamFailure` mencoba sekali lagi dengan `playStation(station, { shoutcastRetry: true })` kalau semua syarat ini terpenuhi:
+
+- stream belum pernah berbunyi, dan bukan sambung ulang;
+- error bukan `NotAllowedError` dan bukan `TimeoutError` (supaya pengguna tidak menunggu `CONNECT_TIMEOUT_MS` dua kali);
+- perangkat online, dan stasiun bukan HLS;
+- `shoutcastStreamUrl(streamUrl)` mengubah URL, artinya path-nya `/` tanpa query dan hash;
+- `shoutcastPath` masih false, jadi percobaan ini hanya sekali.
+
+Percobaan ini tidak mengirim `reportClick` lagi. `shoutcastPath` diisi saat percobaan dimulai dan dipertahankan selama sambung ulang, jadi sambung ulang memakai `/;`, tidak kembali ke `/`. Pemutaran baru dari pengguna mengembalikannya ke false. Aturan yang sama berlaku untuk URL hasil ekstraksi playlist.
 
 ### `HLS_CONFIG`
 
@@ -191,7 +209,7 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 | `ConnectionLost` | Koneksi terputus dan tidak bisa disambung ulang. | tampil |
 | `TimeoutError`, stasiun AAC | Stasiun mungkin offline, atau browser tidak bisa memutar AAC. | tampil |
 | `TimeoutError` | Stasiun tidak merespons. | tampil |
-| stream `http:` di halaman HTTPS, dari `station.url` atau `streamUrl` | Stream HTTP diblokir browser di halaman HTTPS. | tampil |
+| `streamUpgraded` (stream HTTP sudah dicoba sebagai HTTPS) | Stasiun memakai stream HTTP, dan versi HTTPS-nya sudah dicoba dan tidak bisa diputar. | tampil |
 | selain itu | Stasiun mungkin sedang offline. | tampil |
 
 Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Selain tombol di mini player, jika kesalahan bukan format yang tidak didukung (`UnsupportedCodec`), `showToast` juga memunculkan toast notifikasi berisi aksi tombol "Coba lagi" yang langsung mencoba memutar stasiun kembali. Aksi toast hanya dijalankan kalau stasiun yang gagal masih ada di player, karena pengguna bisa sudah memilih stasiun lain sebelum toast hilang.
@@ -226,6 +244,7 @@ Selain metadata dan action, `updateMediaSessionPosition` mengisi `navigator.medi
 ## HTTPS dan CSP
 
 - Di halaman HTTPS (`SECURE_PAGE`), pencarian mengirim `is_https=true` ke Radio Browser, jadi hanya stasiun dengan stream HTTPS yang tampil. Stasiun HTTP di Favorit atau Baru diputar tetap tampil dengan label `HTTP` (`isInsecureStream`).
+- Saat stasiun HTTP diputar di halaman HTTPS, `secureStreamUrl` mengganti `http://` dengan `https://` dan mempertahankan host dan port. Ini berlaku untuk URL stasiun, URL playlist HLS, dan URL hasil ekstraksi playlist `.pls`/`.m3u`. Browser tidak melakukannya sendiri karena CSP memblokir URL `http://` lebih dulu: di Chrome 149, request ke `http://` ditolak `media-src https: blob:` tanpa dicoba sebagai HTTPS. Banyak server Shoutcast dan Icecast melayani HTTPS di port yang sama, misalnya `streaming.girifm.com:8010`. Kalau versi HTTPS gagal, misalnya karena server tidak melayani HTTPS, stream gagal dan pesannya menyebut stream HTTP (`streamUpgraded`).
 - CSP dibuat oleh `scripts/build_public.py` ke `public/_headers`. `media-src https: blob:` mengizinkan stream HTTPS dari server stasiun mana pun, dan `blob:` dipakai Media Source Extensions untuk hls.js. `connect-src` memuat `https:` supaya hls.js bisa mengambil playlist dan segmen dari server stasiun mana pun.
 - `python3 -m http.server` tidak membaca `_headers`, jadi perubahan CSP baru bisa dicek sesudah deploy.
 

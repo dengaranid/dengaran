@@ -17,7 +17,7 @@ Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework,
 - Mendukung playlist `.pls` dan `.m3u` audio biasa yang diekstrak langsung ke URL stream siarannya.
 - Stasiun HLS (`.m3u8`) diputar lewat [hls.js](https://github.com/video-dev/hls.js) di browser yang tidak memutar HLS sendiri, misalnya Firefox. hls.js memilih bitrate otomatis kalau stasiunnya menyediakan beberapa bitrate, dan menargetkan latensi 3 segmen di belakang siaran live, dengan batas 6 segmen. File hls.js hanya diunduh saat stasiun HLS diputar.
 - Integrasi Media Session: kontrol putar, stop, stasiun sebelumnya/berikutnya, serta durasi mendengar di lock screen dan notifikasi perangkat.
-- Di halaman HTTPS, pencarian hanya menampilkan stasiun dengan stream HTTPS. Stasiun HTTP lama yang masih ada di Favorit atau Baru diputar diberi label `HTTP`, karena browser bisa memblokirnya.
+- Di halaman HTTPS, pencarian hanya menampilkan stasiun dengan stream HTTPS. Stasiun HTTP lama yang masih ada di Favorit atau Baru diputar diberi label `HTTP`. Saat diputar, stream-nya dicoba lewat HTTPS di host dan port yang sama, dan gagal kalau versi HTTPS tidak bisa diputar.
 
 Cara kerja pemutaran, batas waktu, dan sambung ulang dijelaskan di [docs/streaming.md](docs/streaming.md).
 
