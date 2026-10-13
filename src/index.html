@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Dengaran: Radio Online Indonesia, Gratis di Browser</title>
+  <title>Dengaran: Radio Online dan Streaming Indonesia, Gratis</title>
   <meta
     name="description"
-    content="Dengar radio online dari Indonesia dan negara lain langsung di browser. Cari per nama, negara, dan genre. Gratis, tanpa iklan, tanpa cookie, tanpa daftar akun."
+    content="Dengar radio online dan radio streaming dari Indonesia dan negara lain langsung di browser. Cari per nama, negara, dan genre. Gratis, tanpa iklan, tanpa cookie, tanpa daftar akun."
   />
   <meta name="google-site-verification" content="QNFFzkLpd1LQuX-JO6DVmGFBmO_zxd31011c8vppFpY" />
   <meta name="theme-color" content="#0f1113" />
@@ -18,7 +18,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Dengaran" />
   <meta property="og:locale" content="id_ID" />
-  <meta property="og:title" content="Dengaran: Radio Online Indonesia, Gratis di Browser" />
+  <meta property="og:title" content="Dengaran: Radio Online dan Streaming Indonesia, Gratis" />
   <meta
     property="og:description"
     content="Ribuan stasiun radio online dari Indonesia dan negara lain. Gratis, tanpa iklan, tanpa cookie, tanpa daftar akun."
@@ -46,7 +46,7 @@
     <header class="hero">
       <div class="brand">
         <h1>Dengaran</h1>
-        <p class="tagline">Dengar radio hari ini</p>
+        <p class="tagline">Radio online hari ini</p>
       </div>
 
       <div class="hero-actions">
@@ -366,6 +366,15 @@
         aria-controls="legalPanelTerms"
         tabindex="-1"
       >Ketentuan</button>
+      <button
+        id="legalTabFaq"
+        class="dialog-tab"
+        role="tab"
+        type="button"
+        aria-selected="false"
+        aria-controls="legalPanelFaq"
+        tabindex="-1"
+      >FAQ</button>
     </div>
 
     <div class="dialog-body">
@@ -402,6 +411,8 @@
             Browser Anda mengambil siaran langsung dari server milik stasiun pemancar.
           </p>
         </div>
+
+        <!-- seo:landing-links diisi scripts/build_public.py -->
       </section>
 
       <section id="legalPanelPrivacy" class="dialog-panel" role="tabpanel" aria-labelledby="legalTabPrivacy" hidden>
@@ -473,6 +484,58 @@
             Sertakan nama stasiun, link atau <code>stationuuid</code> di Radio Browser, serta keterangan
             bahwa Anda pemilik stasiun atau perwakilan sah. Stasiun hanya disembunyikan di Dengaran.
             Datanya tetap ada di Radio Browser. Untuk mengubah atau menghapusnya, hubungi Radio Browser.
+          </p>
+        </div>
+      </section>
+
+      <section id="legalPanelFaq" class="dialog-panel" role="tabpanel" aria-labelledby="legalTabFaq" hidden>
+        <div class="dialog-section">
+          <h3>Bagaimana cara mendengarkan radio online di Dengaran?</h3>
+          <p>
+            Buka Dengaran di browser, cari stasiun berdasarkan nama, negara, atau genre, lalu tekan Putar.
+            Siaran radio streaming langsung diputar di browser tanpa memasang aplikasi.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Apakah radio streaming di Dengaran gratis?</h3>
+          <p>
+            Ya. Semua stasiun dapat diputar gratis, tanpa iklan dari Dengaran, tanpa cookie, dan tanpa daftar akun.
+            Iklan yang terdengar di siaran berasal dari stasiun radionya sendiri.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Radio online apa saja yang tersedia?</h3>
+          <p>
+            Ribuan stasiun dari Indonesia dan negara lain: radio berita, musik pop, dangdut, jazz, rohani,
+            olahraga, dan banyak genre lain. Daftar stasiun berasal dari Radio Browser, basis data radio terbuka
+            yang dikelola komunitas.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Apakah bisa dipakai di HP?</h3>
+          <p>
+            Bisa. Dengaran berjalan di browser Android dan iPhone, juga di laptop dan komputer.
+            Siaran tetap terdengar saat layar HP dikunci, dan dapat dikendalikan dari notifikasi media.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Berapa kuota internet yang dipakai?</h3>
+          <p>
+            Tergantung bitrate stasiun. Stream 64 kbps memakai sekitar 29 MB per jam, dan 128 kbps sekitar
+            58 MB per jam. Bitrate setiap stasiun tertulis di daftar radio.
+          </p>
+        </div>
+
+        <div class="dialog-section">
+          <h3>Kenapa sebuah stasiun tidak bisa diputar?</h3>
+          <p>
+            Stream radio online diambil langsung dari server stasiun. Kalau server itu sedang tidak aktif atau pindah alamat,
+            siarannya tidak dapat diputar. Coba stasiun lain atau putar lagi
+            beberapa saat kemudian.
           </p>
         </div>
       </section>

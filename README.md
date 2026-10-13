@@ -61,8 +61,13 @@ bin/build
 - salinan `src/vendor/` apa adanya
 - script Cloudflare Web Analytics di `index.html`, kalau `CF_ANALYTICS_TOKEN` di `scripts/build_public.py` terisi. Token ini tampil di HTML publik, jadi bukan secret. Kalau kosong, script tidak disisipkan dan host-nya tidak masuk CSP.
 - ikon dan gambar preview dari `assets/`, `robots.txt`, `sitemap.xml`, dan `404.html`
+- halaman daftar radio per kota dan genre (`radio-online-jakarta.html`, `radio-dangdut.html`, dan seterusnya), dilayani Cloudflare Pages tanpa ekstensi di `/radio-online-jakarta`. Daftarnya di `LANDING_PAGES` di `scripts/build_public.py`. Isinya stasiun Indonesia HTTPS dari Radio Browser, diambil saat build dan diurutkan dari jumlah klik terbanyak, maksimal 100 per halaman. Halaman dengan kurang dari 8 stasiun tidak ditulis. Link ke halaman-halaman ini ada di `sitemap.xml` dan di dialog Tentang
 - `third-party-notices.txt`, salinan `THIRD_PARTY_NOTICES.md`
 - `_headers` untuk Cloudflare Pages: Content Security Policy, header keamanan lain, dan aturan cache
+
+Build membutuhkan koneksi internet untuk mengambil daftar stasiun. Kalau semua server API Radio Browser gagal dijawab, build berhenti dengan pesan error, dan Cloudflare Pages tetap memakai deploy sebelumnya. Stasiun di `BLOCKED_STATION_IDS` dan `BLOCKED_TAGS` di `src/app.js` ikut disaring; script membaca kedua daftar itu langsung dari `src/app.js`. Daftar stasiun di halaman ini hanya diperbarui saat ada build baru.
+
+Tiap stasiun di halaman daftar radio menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` mengambil stasiun itu dari API, menyiapkannya di player tanpa memutar, lalu menghapus parameter dari alamat.
 
 `SITE_URL` di bagian atas `scripts/build_public.py` berisi alamat produksi (`https://dengaran.pages.dev`) dan dipakai untuk URL absolut di tag SEO, `robots.txt`, dan `sitemap.xml`. Ubah nilainya kalau situs pindah ke domain lain.
 

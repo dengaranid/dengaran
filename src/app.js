@@ -15,7 +15,7 @@ const SITE_INFO = {
   email: "dengaranid@gmail.com",
   supportPlatform: "Saweria",
   supportUrl: "https://saweria.co/dengaranid",
-  legalUpdated: "12 Oktober 2026"
+  legalUpdated: "13 Oktober 2026"
 };
 
 // Stasiun yang disembunyikan atas permintaan pemilik stasiun atau pemegang hak cipta.
@@ -377,6 +377,7 @@ async function init() {
   restoreVolume();
   updateShortcutUI();
   restoreLastStation();
+  restoreLinkedStation();
   updatePlaybackUI();
   observeLayout();
   observeLoadMore();
@@ -2075,6 +2076,51 @@ function restoreLastStation() {
   isPlaying = false;
   setPlayerStation(last);
   showStatus("Terakhir diputar. Tekan Putar untuk mendengarkan.");
+}
+
+const STATION_PARAM = "station";
+const STATION_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Link dari halaman daftar radio (/?station=<uuid>) menyiapkan stasiun itu di player,
+// menggantikan stasiun terakhir. Tanpa auto-play, sama seperti restoreLastStation.
+async function restoreLinkedStation() {
+  const params = new URLSearchParams(location.search);
+  const id = (params.get(STATION_PARAM) || "").trim();
+  if (!params.has(STATION_PARAM)) return;
+
+  // Parameter dibuang dari alamat supaya muat ulang dan bookmark tidak memilih stasiun ini lagi.
+  params.delete(STATION_PARAM);
+  const query = params.toString();
+  window.history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);
+
+  // Isian kosong atau bukan uuid: stasiun terakhir tetap dipakai.
+  if (!STATION_UUID_PATTERN.test(id)) return;
+
+  const stationBeforeFetch = currentStation;
+  const requestBeforeFetch = playRequestId;
+  const result = await apiFetch(`/stations/byuuid/${encodeURIComponent(id)}`);
+  // Pengguna sudah memilih, menyambung, atau memutar stasiun selama request berjalan:
+  // pilihannya dipakai. playRequestId juga berubah kalau Putar ditekan untuk stasiun terakhir
+  // yang sama, yang tidak terlihat dari currentStation.
+  if (
+    isPlaying || isConnecting || playRequestId !== requestBeforeFetch ||
+    currentStation !== stationBeforeFetch
+  ) return;
+
+  // null (semua server gagal), "aborted", atau array kosong (uuid tidak dikenal Radio Browser).
+  const found = Array.isArray(result) ? result[0] : null;
+  const station = found ? normalizeStation(found) : null;
+  // Di halaman HTTPS pencarian hanya menampilkan stasiun HTTPS; link ke stasiun HTTP diperlakukan sama.
+  const insecure = Boolean(station?.url) && SECURE_PAGE && !station.url.startsWith("https:");
+  if (!station || !station.url || insecure || isBlockedStation(station)) {
+    showStatus("Stasiun dari link tidak ditemukan. Pilih radio lain dari daftar.", true);
+    return;
+  }
+
+  currentStation = station;
+  setPlayerStation(station);
+  updatePlaybackUI();
+  showStatus("Tekan Putar untuk mendengarkan.");
 }
 
 // ---------- Layout & observer ----------
