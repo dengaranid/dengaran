@@ -26,6 +26,9 @@ const SITE_INFO = {
 // Sesudah mengubah daftar ini, jalankan python3 scripts/build_public.py dan deploy ulang.
 const BLOCKED_STATION_IDS = [
   // "contoh-uuid-0000-0000-000000000000", // nama stasiun, tanggal permintaan
+  // CNN Indonesia, 2026-10-13: server menolak Referer dari domain lain (403), dan HLS bawaan
+  // Chrome macet saat pindah bitrate. Tidak bisa diputar dari Dengaran.
+  "6f424852-4bf4-431e-a715-3fcb553095b3",
 ];
 const blockedStationIds = new Set(BLOCKED_STATION_IDS.map(id => String(id).toLowerCase()));
 
