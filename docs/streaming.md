@@ -8,7 +8,7 @@ Kalau kode streaming diubah, dokumen ini diperbarui di commit yang sama.
 
 Dengaran tidak punya server stream. URL stream diambil dari [Radio Browser](https://www.radio-browser.info), dan audio diunduh browser langsung dari server stasiun. Dengaran tidak melakukan transcode atau proxy.
 
-Akibatnya, format, codec, dan bitrate ditentukan oleh stasiun. Satu stasiun di Radio Browser punya satu URL stream. Stream yang diterima Dengaran ada dua jenis:
+Akibatnya, format, codec, dan bitrate ditentukan oleh stasiun. Kartu stasiun menampilkan codec bersama bitrate (`qualityText`, misalnya `AAC+ 64 kbps`), karena angka kbps saja tidak bisa dibandingkan antar codec. Satu stasiun di Radio Browser punya satu URL stream. Stream yang diterima Dengaran ada dua jenis:
 
 | Jenis | Contoh | Cara diputar |
 |---|---|---|
@@ -95,14 +95,14 @@ Error hls.js yang tidak fatal dipulihkan sendiri oleh hls.js. Error fatal bertip
 | Opsi | Nilai | Alasan |
 |---|---|---|
 | `enableWorker` | `false` | Worker hls.js dibuat dari `blob:` URL dan diblokir CSP. Transmux stream audio dijalankan di main thread. |
-| `liveSyncDurationCount` | `3` | Mulai 3 segmen di belakang ujung playlist live, batas minimum spesifikasi HLS. |
-| `maxLiveSyncPlaybackRate` | `1.05` | Tertinggal 3 sampai 6 segmen: putar sampai 1.05x sampai kembali ke posisi live. Pitch tetap karena `preservesPitch` elemen audio aktif secara default. |
-| `liveMaxLatencyDurationCount` | `6` | Tertinggal lebih dari 6 segmen: seek langsung ke posisi live. |
+| `liveSyncDurationCount` | `4` | Mulai 4 segmen di belakang ujung playlist live, satu di atas batas minimum spesifikasi HLS, supaya buffer lebih tebal di jaringan yang naik turun. Jarak ke siaran live tidak penting untuk radio. |
+| `maxLiveSyncPlaybackRate` | `1` | Kecepatan putar tetap 1x, jadi stream yang tertinggal tidak dipercepat. Menjaga pitch pada kecepatan selain 1x memakai time-stretching browser (`preservesPitch`), yang bisa terdengar pada musik. |
+| `liveMaxLatencyDurationCount` | `10` | Tertinggal lebih dari 10 segmen: seek langsung ke posisi live. Seek membuat sebagian audio tidak terputar, jadi batasnya dinaikkan dari 6. |
 | `maxBufferLength` | `15` | Batas buffer di depan posisi putar, dalam detik (ditingkatkan untuk stabilitas jaringan fluktuatif). |
 | `backBufferLength` | `10` | Batas buffer di belakang posisi putar, dalam detik. |
 | `enableID3MetadataCues`, `enableEmsgMetadataCues`, `enableDateRangeMetadataCues` | `false` | Metadata ID3, EMSG, dan DATERANGE dari stream tidak dipakai aplikasi. Kalau aktif, hls.js membuat `<track src="data:,WEBVTT">` untuk menampungnya, dan CSP `media-src` memblokir `data:`. |
 
-Pemilihan bitrate (ABR) memakai default hls.js. ABR hanya berlaku kalau playlist stasiun menyediakan lebih dari satu bitrate.
+Pemilihan bitrate (ABR) memakai default hls.js. ABR hanya berlaku kalau playlist stasiun menyediakan lebih dari satu bitrate. `startLevel` tidak diisi, jadi level awal dipilih `firstAutoLevel` dari perkiraan bandwidth awal `abrEwmaDefaultEstimate` (500 kbps). Varian audio radio umumnya di bawah angka itu, jadi pemutaran dimulai dari bitrate tertinggi.
 
 hls.js disimpan di `src/vendor/hls-<versi>.light.min.js`. Saat versinya diganti, `HLS_SCRIPT` dan `THIRD_PARTY_NOTICES.md` ikut diubah.
 
@@ -206,7 +206,7 @@ Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpo
 
 Fitur pengatur waktu tidur (`setSleepTimer`, `cancelSleepTimer`, `startSleepFadeOut`, `finishSleepTimer`) memungkinkan pengguna mengatur waktu penghentian siaran (pilihan: Nonaktif, 15m, 30m, 45m, 60m):
 - Saat aktif, indikator sisa waktu tidur tampil pada badge di player status (`#sleepTimerBadge`) dan ikon tombol timer disorot aktif.
-- Pada 5 detik terakhir sebelum waktu tidur berakhir, `startSleepFadeOut` menurunkan volume audio secara bertahap dari level semula ke 0 selama 5 detik.
+- Pada 5 detik terakhir sebelum waktu tidur berakhir, `startSleepFadeOut` menurunkan volume audio dari level semula ke 0 selama 5 detik, tiap 100 ms. Penurunannya linier dalam desibel (0 sampai -60 dB, lalu 0 di langkah terakhir), karena penurunan linier pada nilai `volume` terdengar lambat lalu hilang mendadak di akhir.
 - Saat timer habis, `finishSleepTimer` memanggil `stopPlayback("Waktu tidur selesai.")`, menampilkan toast informasi, lalu mengembalikan volume audio ke setelan semula sehingga pemutaran berikutnya tidak terbisukan.
 
 ## Media Session
@@ -237,7 +237,7 @@ Fitur di bawah ini adalah teknik optimasi streaming yang umum dipakai di web pla
 |---|---|
 | ABR dengan varian bitrate sendiri (32 kbps Opus, 64 kbps AAC, 128 kbps AAC) | Butuh server yang meng-encode stream ke beberapa bitrate. Dengaran tidak punya server stream. ABR hanya berjalan lewat default hls.js untuk stasiun HLS yang menyediakan beberapa bitrate. |
 | Prioritas codec Opus | Satu stasiun di Radio Browser punya satu URL dan satu codec, jadi tidak ada alternatif codec yang bisa dipilih. |
-| Catch-up `playbackRate` untuk stream Icecast | Hanya dibuat untuk HLS, lewat `maxLiveSyncPlaybackRate`. Stream HTTP biasa tidak memberi posisi live yang bisa dijadikan acuan. |
+| Catch-up `playbackRate` | Tidak dipakai, termasuk untuk HLS (`maxLiveSyncPlaybackRate: 1`). Kecepatan selain 1x memakai time-stretching yang bisa terdengar pada musik. Stream HTTP biasa juga tidak memberi posisi live yang bisa dijadikan acuan. |
 | `preload="metadata"` | Dipakai `preload="none"`. `preload="metadata"` membuka koneksi ke server stasiun sebelum Putar ditekan, dan stream live tidak punya durasi untuk dibaca. |
 | Visualizer atau EQ dengan Web Audio API | Belum dibuat. `MediaElementAudioSourceNode` dari stream lintas origin hanya menghasilkan sunyi kalau server stasiun tidak mengirim header CORS. Animasi equalizer untuk penanda stasiun aktif juga tidak dipakai. |
 | Page Visibility API untuk menurunkan animasi | Tidak ada animasi yang berjalan terus selama memutar, selain ikon loader saat menyambung. |

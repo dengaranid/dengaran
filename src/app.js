@@ -67,13 +67,16 @@ const HLS_CONFIG = {
   // Worker hls.js dibuat dari blob: URL dan diblokir CSP. Transmux stream audio di main thread
   // ringan, jadi worker tidak dipakai.
   enableWorker: false,
-  // Mulai 3 segmen di belakang ujung playlist live, batas minimum yang diizinkan spesifikasi HLS.
-  liveSyncDurationCount: 3,
-  // Tertinggal 3 sampai 6 segmen: putar sedikit lebih cepat (maksimal 1.05x) sampai kembali ke
-  // posisi live. Pitch tidak berubah karena preservesPitch elemen audio aktif secara default.
-  maxLiveSyncPlaybackRate: 1.05,
-  // Tertinggal lebih dari 6 segmen: seek langsung ke posisi live.
-  liveMaxLatencyDurationCount: 6,
+  // Mulai 4 segmen di belakang ujung playlist live, satu di atas batas minimum spesifikasi HLS,
+  // supaya buffer lebih tebal di jaringan yang naik turun. Jarak ke siaran live tidak penting
+  // untuk radio.
+  liveSyncDurationCount: 4,
+  // Kecepatan putar tetap 1x. Menjaga pitch pada kecepatan selain 1x memakai time-stretching
+  // browser, yang bisa terdengar pada musik.
+  maxLiveSyncPlaybackRate: 1,
+  // Tertinggal lebih dari 10 segmen: seek langsung ke posisi live. Seek membuat sebagian audio
+  // tidak terputar, jadi batasnya dinaikkan dari 6.
+  liveMaxLatencyDurationCount: 10,
   // Batasi buffer di depan dan di belakang posisi putar supaya kuota dan memori tidak terpakai
   // untuk audio yang tidak akan didengar. Pemilihan bitrate (ABR) memakai default hls.js.
   maxBufferLength: 15,
@@ -717,8 +720,21 @@ function metaText(station, { withLanguage = true } = {}) {
   ];
   const language = withLanguage ? formatLanguage(station.language) : "";
   if (language) parts.push(language);
-  if (station.bitrate) parts.push(`${station.bitrate} kbps`);
+  const quality = qualityText(station);
+  if (quality) parts.push(quality);
   return parts.join(" • ");
+}
+
+// Codec ditampilkan di samping bitrate karena kbps saja tidak bisa dibandingkan antar codec:
+// AAC+ 64 kbps umumnya terdengar setara MP3 sekitar 128 kbps. Radio Browser menulis "UNKNOWN"
+// kalau codec tidak terdeteksi, dan stream HLS video bisa berisi beberapa codec ("AAC,H.264"),
+// jadi hanya codec pertama yang diambil.
+function qualityText(station) {
+  const codec = (station.codec || "").split(",")[0].trim().toUpperCase();
+  const parts = [];
+  if (codec && codec !== "UNKNOWN") parts.push(codec);
+  if (station.bitrate) parts.push(`${station.bitrate} kbps`);
+  return parts.join(" ");
 }
 
 function createStationCard(station) {
@@ -1734,7 +1750,10 @@ function startSleepFadeOut() {
   sleepFadeTicker = setInterval(() => {
     const elapsed = Date.now() - fadeStart;
     const progress = Math.min(1, elapsed / fadeDuration);
-    audioPlayer.volume = Math.max(0, startVol * (1 - progress));
+    // Volume turun linier dalam desibel (0 sampai -60 dB), karena telinga mendengar volume
+    // secara logaritmik. Penurunan linier pada nilai volume terdengar lambat lalu hilang
+    // mendadak di akhir. -60 dB (0.001) ke 0 di langkah terakhir tidak terdengar.
+    audioPlayer.volume = progress >= 1 ? 0 : startVol * Math.pow(10, (-60 * progress) / 20);
     updateVolumeUI();
 
     if (progress >= 1) {
