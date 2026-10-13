@@ -8,17 +8,17 @@ Aplikasinya ditulis dengan HTML, CSS, dan JavaScript biasa. Tidak ada framework,
 
 ## Fitur
 
-- Cari stasiun berdasarkan nama, lalu saring per negara dan genre. Hasilnya bisa diurutkan dari yang terpopuler, paling disukai, nama, atau bitrate.
-- Negara awal ditebak dari browser: Indonesia kalau zona waktunya WIB, WITA, atau WIT, kalau tidak dari bahasa browser. Kalau negara itu tidak punya stasiun, daftar kembali ke Indonesia.
-- Favorit dan daftar Baru diputar (8 stasiun terakhir) disimpan di `localStorage` browser, jadi tidak ada data pengguna yang dikirim ke server.
-- Pengatur waktu tidur (Sleep Timer): hentikan siaran otomatis sesudah 15, 30, 45, atau 60 menit, dengan penurunan volume bertahap (fade out) 5 detik sebelum waktu habis.
-- Volume naik bertahap selama 3 detik tiap kali stasiun mulai diputar, supaya suara tidak langsung keras kalau volume sistem masih tinggi.
+- Cari stasiun berdasarkan nama, saring per negara dan genre, lalu urutkan dari yang terpopuler, paling disukai, nama, atau bitrate.
+- Negara awal ditebak dari zona waktu dan bahasa browser. Kalau negara itu tidak punya stasiun, daftar kembali ke Indonesia.
+- Favorit dan Baru diputar (8 stasiun terakhir) disimpan di `localStorage` browser. Tidak ada data pengguna yang dikirim ke server.
+- Sleep Timer 15, 30, 45, atau 60 menit, dengan volume turun bertahap 5 detik sebelum siaran berhenti.
+- Volume naik bertahap selama 3 detik setiap stasiun mulai diputar.
 - Pintasan keyboard: `/` cari, `Spasi` putar atau stop, `N` dan `P` pindah stasiun, `M` bisukan.
-- Stream yang terputus saat sedang diputar disambung ulang otomatis sampai lima kali, dengan jeda 1, 2, 4, 8, lalu 15 detik. Selama menyambung ulang, sisa audio di buffer tetap diputar. Kalau perangkat offline, percobaan ditunda sampai jaringan tersambung lagi.
-- Mendukung playlist `.pls` dan `.m3u` audio biasa yang diekstrak langsung ke URL stream siarannya.
-- Stasiun HLS (`.m3u8`) diputar lewat [hls.js](https://github.com/video-dev/hls.js) di browser yang tidak memutar HLS sendiri, misalnya Firefox. hls.js memilih bitrate otomatis kalau stasiunnya menyediakan beberapa bitrate, dan menargetkan latensi 3 segmen di belakang siaran live, dengan batas 6 segmen. File hls.js hanya diunduh saat stasiun HLS diputar.
-- Integrasi Media Session: kontrol putar, stop, stasiun sebelumnya/berikutnya, serta durasi mendengar di lock screen dan notifikasi perangkat.
-- Di halaman HTTPS, pencarian hanya menampilkan stasiun dengan stream HTTPS. Stasiun HTTP lama yang masih ada di Favorit atau Baru diputar diberi label `HTTP`. Saat diputar, stream-nya dicoba lewat HTTPS di host dan port yang sama, dan gagal kalau versi HTTPS tidak bisa diputar.
+- Stream yang terputus disambung ulang otomatis sampai lima kali. Kalau perangkat offline, percobaan menunggu jaringan tersambung lagi.
+- Playlist `.pls` dan `.m3u`, juga stasiun HLS (`.m3u8`) lewat [hls.js](https://github.com/video-dev/hls.js) di browser yang tidak memutar HLS sendiri. hls.js hanya diunduh saat stasiun HLS diputar.
+- Media Session: putar, stop, dan pindah stasiun dari lock screen dan notifikasi perangkat.
+- Di halaman HTTPS, pencarian hanya menampilkan stasiun HTTPS. Stasiun HTTP yang sudah ada di Favorit atau Baru diputar diberi label `HTTP` dan dicoba diputar lewat HTTPS.
+- Halaman daftar radio per kota dan genre, misalnya `/radio-online-jakarta` dan `/radio-dangdut`.
 
 Cara kerja pemutaran, batas waktu, dan sambung ulang dijelaskan di [docs/streaming.md](docs/streaming.md).
 
@@ -33,6 +33,7 @@ scripts/dev_server.py    server lokal untuk bin/dev
 docs/                    dokumentasi teknis, tidak ikut ke public/
 bin/dev                  server preview lokal
 bin/build                build ke public/
+.github/workflows/       build ulang mingguan
 public/                  hasil build, tidak masuk repo
 THIRD_PARTY_NOTICES.md   atribusi dan lisensi pihak ketiga, disalin ke public/ saat build
 ```
@@ -45,9 +46,9 @@ bin/dev --public     # build ke public/ lalu sajikan versi minify
 bin/dev 3000         # port lain, atau PORT=3000 bin/dev
 ```
 
-Script ini menjalankan `scripts/dev_server.py`, yang hanya memakai Python bawaan. Seperti Cloudflare Pages, server ini menyajikan `/radio-pop` dari `radio-pop.html` dan menjawab path yang tidak ada dengan `404.html`. Halaman daftar radio hanya ada di `public/`, jadi buka dengan `bin/dev --public`. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian. Server ini tidak membaca `public/_headers`, jadi CSP dan aturan cache baru bisa dicek sesudah deploy.
+Halaman daftar radio hanya ada di hasil build, jadi buka dengan `bin/dev --public`. Server lokal berbeda dengan produksi dalam dua hal. Karena localhost bukan HTTPS, stasiun HTTP ikut tampil di pencarian. `public/_headers` juga tidak dibaca, jadi perubahan CSP dan cache baru bisa dicek sesudah deploy.
 
-Output `bin/dev`, `bin/build`, dan `scripts/build_public.py` berwarna kalau dijalankan di terminal. Warna tidak dipakai saat output di-pipe atau ditulis ke log, termasuk log build Cloudflare Pages. Untuk menonaktifkannya di terminal, isi `NO_COLOR=1`.
+Output script berwarna di terminal. Isi `NO_COLOR=1` untuk menonaktifkannya.
 
 ## Build
 
@@ -55,37 +56,35 @@ Output `bin/dev`, `bin/build`, dan `scripts/build_public.py` berwarna kalau dija
 bin/build
 ```
 
-`bin/build` menjalankan `python3 scripts/build_public.py`. Script ini mengisi folder `public/` dengan:
+`bin/build` menjalankan `python3 scripts/build_public.py`, yang mengisi `public/` dengan:
 
-- `styles.<hash>.min.css` dan `app.<hash>.min.js`, versi minify dengan hash isi di nama file supaya browser selalu mengambil versi terbaru setelah deploy. CSS di-minify dengan Python. JS di-minify dengan `bun build --minify` kalau `bun` ada di PATH; kalau tidak, dengan minifier Python yang tidak memperpendek nama variabel, jadi hasilnya sekitar 2,5 KB lebih besar sesudah brotli. Baris output build menyebut minifier mana yang dipakai.
-- `index.html` yang sudah merujuk ke file minify, plus tag SEO dengan URL absolut
-- salinan `src/vendor/` apa adanya
-- script Cloudflare Web Analytics di `index.html`, kalau `CF_ANALYTICS_TOKEN` di `scripts/build_public.py` terisi. Token ini tampil di HTML publik, jadi bukan secret. Kalau kosong, script tidak disisipkan dan host-nya tidak masuk CSP.
-- ikon dan gambar preview dari `assets/`, `robots.txt`, `sitemap.xml`, dan `404.html`
-- halaman daftar radio per kota dan genre (`radio-online-jakarta.html`, `radio-dangdut.html`, dan seterusnya), dilayani Cloudflare Pages tanpa ekstensi di `/radio-online-jakarta`. Daftarnya di `LANDING_PAGES` di `scripts/build_public.py`. Isinya stasiun Indonesia HTTPS dari Radio Browser, diambil saat build dan diurutkan dari jumlah klik terbanyak, maksimal 100 per halaman. Entri ganda digabung kalau kata di namanya sama tanpa melihat urutan dan huruf besar (`Jak FM 101` dan `JAK 101 FM`). Tiap halaman punya paragraf ringkasan yang dihitung dari datanya: jumlah stasiun, tiga yang paling sering diputar, kota atau genre yang paling sering muncul, dan bitrate. Halaman dengan kurang dari 8 stasiun tidak ditulis. Link ke halaman-halaman ini ada di `sitemap.xml`, di dialog Tentang, dan di baris tab Kota dan Genre di tiap halaman
-- `third-party-notices.txt`, salinan `THIRD_PARTY_NOTICES.md`
-- `_headers` untuk Cloudflare Pages: Content Security Policy, header keamanan lain, dan aturan cache
+- CSS dan JS versi minify, dengan hash isi di nama file (`styles.<hash>.min.css`, `app.<hash>.min.js`). JS di-minify dengan Bun kalau ada. Tanpa Bun, minifier Python dipakai, dan hasilnya sekitar 2,5 KB lebih besar sesudah brotli.
+- `index.html` dengan tag SEO berisi URL absolut dari `SITE_URL`, plus script Cloudflare Web Analytics kalau `CF_ANALYTICS_TOKEN` terisi.
+- halaman daftar radio, `sitemap.xml`, `robots.txt`, `404.html`, aset dari `assets/`, salinan `src/vendor/`, dan `third-party-notices.txt`.
+- `_headers` berisi Content Security Policy, header keamanan lain, dan aturan cache.
 
-Build membutuhkan koneksi internet untuk mengambil daftar stasiun. Kalau semua server API Radio Browser gagal dijawab, build berhenti dengan pesan error, dan Cloudflare Pages tetap memakai deploy sebelumnya. Stasiun di `BLOCKED_STATION_IDS` dan `BLOCKED_TAGS` di `src/app.js` ikut disaring; script membaca kedua daftar itu langsung dari `src/app.js`. Daftar stasiun di halaman ini hanya diperbarui saat ada build baru. Supaya datanya tidak menunggu push berikutnya, `.github/workflows/rebuild.yml` memanggil Deploy Hook Cloudflare Pages setiap Senin 06:17 WIB (Minggu 23:17 UTC). URL hook-nya disimpan di secret GitHub `CF_PAGES_DEPLOY_HOOK`; workflow ini juga bisa dijalankan manual dari tab Actions.
+Build butuh koneksi internet untuk mengambil daftar stasiun. Kalau semua server Radio Browser gagal dijawab, build berhenti dengan pesan error dan deploy sebelumnya tetap dipakai.
 
-Tiap stasiun di halaman daftar radio menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` mengambil stasiun itu dari API, menyiapkannya di player tanpa memutar, lalu menghapus parameter dari alamat.
+## Halaman daftar radio
 
-`SITE_URL` di bagian atas `scripts/build_public.py` berisi alamat produksi (`https://dengaran.id`) dan dipakai untuk URL absolut di tag SEO, `robots.txt`, dan `sitemap.xml`. Ubah nilainya kalau situs pindah ke domain lain.
+Halaman per kota dan genre didaftarkan di `LANDING_PAGES` di `scripts/build_public.py`, lalu dilayani tanpa ekstensi, misalnya `/radio-online-jakarta`.
 
-## Deploy ke Cloudflare Pages
+- Isinya stasiun Indonesia HTTPS dari Radio Browser, diurutkan dari jumlah klik terbanyak, maksimal 100 per halaman. Halaman dengan kurang dari 8 stasiun tidak ditulis.
+- Entri ganda digabung kalau kata di namanya sama, tanpa melihat urutan dan huruf besar (`Jak FM 101` dan `JAK 101 FM`).
+- Stasiun di `BLOCKED_STATION_IDS` dan `BLOCKED_TAGS` di `src/app.js` ikut disaring.
+- Paragraf ringkasan di tiap halaman dihitung dari datanya: jumlah stasiun, yang paling sering diputar, kota atau genre terbanyak, dan bitrate.
 
-Ada dua cara, dan pilihannya harus ditentukan saat membuat project, karena project Upload assets tidak bisa diubah ke integrasi Git belakangan.
+Tiap stasiun menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` menyiapkan stasiun itu di player tanpa memutarnya.
 
-1. Upload assets: jalankan build, lalu upload isi folder `public/` lewat dashboard Cloudflare setiap ada perubahan.
-2. Integrasi Git: hubungkan repo ini ke Cloudflare Pages dengan build command `python3 scripts/build_public.py` dan build output directory `public`. Build image Cloudflare Pages sudah berisi Bun. Isi environment variable `BUN_VERSION` dengan versi yang sama dengan Bun di komputer sendiri (`bun --version`), supaya hasil minify di lokal dan di Cloudflare sama.
+Data halaman ini diambil ulang di setiap build. Supaya tidak menunggu push, `.github/workflows/rebuild.yml` memicu build setiap Senin 06:17 WIB lewat Deploy Hook Cloudflare Pages. URL hook-nya disimpan di secret GitHub `CF_PAGES_DEPLOY_HOOK`. Workflow ini juga bisa dijalankan manual dari tab Actions.
 
-Project Dengaran memakai cara kedua, dengan pengaturan berikut:
+## Deploy
 
-- Push ke `main` di-deploy ke produksi, `https://dengaran.id`. Alamat `https://dengaran.pages.dev` dan `https://www.dengaran.id` di-redirect 301 ke alamat ini: yang pertama lewat Bulk Redirects di akun Cloudflare (tanpa Include subdomains, supaya alamat preview tidak ikut di-redirect), yang kedua lewat Redirect Rule di zona `dengaran.id`.
-- Push ke `preview` di-deploy ke `https://preview.dengaran.pages.dev`, untuk mengecek perubahan sebelum masuk produksi. Branch lain tidak di-deploy (Preview branch: Custom branches, include `preview`).
-- Build watch paths berisi `src/*`, `assets/*`, `scripts/*`, dan `THIRD_PARTY_NOTICES.md`. Push yang hanya mengubah file lain, misalnya `README.md`, `docs/`, atau `bin/`, tidak memicu build. Push berisi 20 commit atau lebih tetap di-build.
+Situs di-deploy oleh Cloudflare Pages yang terhubung ke repo ini, dengan build command `python3 scripts/build_public.py` dan output `public`.
 
-Plan Free Cloudflare Pages memberi 500 build per bulan.
+- Push ke `main` di-deploy ke produksi, `https://dengaran.id`.
+- Push ke `preview` di-deploy ke `https://preview.dengaran.pages.dev`, untuk mengecek perubahan sebelum masuk produksi.
+- Push yang hanya mengubah dokumentasi atau `bin/` tidak memicu build.
 
 ## Menyembunyikan stasiun
 
