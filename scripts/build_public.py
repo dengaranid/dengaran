@@ -44,6 +44,10 @@ SITE_URL = "https://dengaran.id"
 
 SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->"
 LANDING_LINKS_MARKER = "<!-- seo:landing-links diisi scripts/build_public.py -->"
+# Tag <head> yang sama di semua halaman (warna, ikon, og:site_name). Ditulis sekali di
+# src/index.html di antara dua penanda ini, lalu disalin ke halaman daftar radio dan 404.html.
+SHARED_HEAD_START = "<!-- head:shared, disalin scripts/build_public.py ke halaman daftar radio dan 404.html -->"
+SHARED_HEAD_END = "<!-- /head:shared -->"
 CSS_TAG = '<link rel="stylesheet" href="styles.css" />'
 JS_TAG = '<script defer src="app.js"></script>'
 ASSET_FILES = ["favicon.svg", "favicon-48.png", "apple-touch-icon.png", "og-image.png"]
@@ -421,7 +425,20 @@ def last_modified():
     return result.stdout.strip() or date.today().isoformat()
 
 
-def not_found_page(css_name):
+def shared_head(html):
+    """Isi di antara SHARED_HEAD_START dan SHARED_HEAD_END di src/index.html, tanpa penandanya.
+    Indentasi tiap baris dipertahankan, jadi bisa langsung ditempel di <head> berindentasi 2."""
+    start = html.index(SHARED_HEAD_START) + len(SHARED_HEAD_START)
+    end = html.find(SHARED_HEAD_END, start)
+    if end == -1:
+        fail(f"{SHARED_HEAD_END} tidak ditemukan sesudah {SHARED_HEAD_START} di src/index.html")
+    block = html[start:end].strip("\n").rstrip()
+    if not block.strip():
+        fail("Blok head:shared di src/index.html kosong.")
+    return block.lstrip()
+
+
+def not_found_page(css_name, head):
     """Halaman 404. Tanpa 404.html, Cloudflare Pages menjawab semua path dengan index.html
     dan status 200, sehingga URL yang tidak ada terbaca sebagai duplikat beranda (soft 404)."""
     return f"""<!DOCTYPE html>
@@ -431,9 +448,7 @@ def not_found_page(css_name):
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Halaman tidak ditemukan | Dengaran</title>
   <meta name="robots" content="noindex" />
-  <meta name="theme-color" content="#0f1113" />
-  <meta name="color-scheme" content="dark" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  {head}
   <link rel="stylesheet" href="/{css_name}" />
 </head>
 <body>
@@ -707,7 +722,7 @@ def landing_nav_html(pages):
     return "\n".join(parts)
 
 
-def landing_page_html(page, pages, css_name, built_on):
+def landing_page_html(page, pages, css_name, built_on, head):
     page_url = f"{SITE_URL}/{page['slug']}"
     heading = html_lib.escape(page["heading"])
     title = f"{page['heading']}: Dengar Gratis di Browser | Dengaran"
@@ -765,20 +780,12 @@ def landing_page_html(page, pages, css_name, built_on):
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>{html_lib.escape(title)}</title>
   <meta name="description" content="{html_lib.escape(description)}" />
-  <meta name="theme-color" content="#0f1113" />
-  <meta name="color-scheme" content="dark" />
   <link rel="canonical" href="{page_url}" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Dengaran" />
-  <meta property="og:locale" content="id_ID" />
+  {head}
   <meta property="og:title" content="{html_lib.escape(title)}" />
   <meta property="og:description" content="{html_lib.escape(description)}" />
   <meta property="og:url" content="{page_url}" />
   <meta property="og:image" content="{SITE_URL}/og-image.png" />
-  <meta name="twitter:card" content="summary_large_image" />
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
   <link rel="stylesheet" href="/{css_name}" />{analytics}
 </head>
@@ -876,6 +883,7 @@ def main():
 
     for marker, label in [
         (SEO_MARKER, "penanda SEO"),
+        (SHARED_HEAD_START, "penanda head:shared"),
         (LANDING_LINKS_MARKER, "penanda link halaman daftar radio"),
         (CSS_TAG, "tag CSS"),
         (JS_TAG, "tag JS"),
@@ -894,6 +902,7 @@ def main():
     except ValueError as error:
         fail(f"Minify JS gagal: {error}")
 
+    head = shared_head(html)
     built_on = date.today()
     landing_pages = landing_pages_with_stations(fetch_landing_stations(js_source))
 
@@ -914,12 +923,12 @@ def main():
     OUTPUT_DIR.mkdir()
 
     (OUTPUT_DIR / "index.html").write_text(html, encoding="utf-8")
-    (OUTPUT_DIR / "404.html").write_text(not_found_page(css_name), encoding="utf-8")
+    (OUTPUT_DIR / "404.html").write_text(not_found_page(css_name, head), encoding="utf-8")
     (OUTPUT_DIR / css_name).write_text(css, encoding="utf-8")
     # <slug>.html dilayani Cloudflare Pages di /<slug>, tanpa ekstensi.
     for page in landing_pages:
         (OUTPUT_DIR / f"{page['slug']}.html").write_text(
-            landing_page_html(page, landing_pages, css_name, built_on), encoding="utf-8"
+            landing_page_html(page, landing_pages, css_name, built_on, head), encoding="utf-8"
         )
     (OUTPUT_DIR / js_name).write_text(js, encoding="utf-8")
 

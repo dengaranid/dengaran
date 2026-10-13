@@ -36,7 +36,8 @@ Output script berwarna di terminal. Isi `NO_COLOR=1` untuk menonaktifkannya.
 
 - CSS dan JS versi minify, dengan hash isi di nama file (`styles.<hash>.min.css`, `app.<hash>.min.js`). JS di-minify dengan Bun kalau ada. Tanpa Bun, minifier Python dipakai, dan hasilnya sekitar 2,5 KB lebih besar sesudah brotli.
 - `index.html` dengan tag SEO berisi URL absolut dari `SITE_URL`, plus script Cloudflare Web Analytics kalau `CF_ANALYTICS_TOKEN` terisi.
-- halaman daftar radio, `sitemap.xml`, `robots.txt`, `404.html`, aset dari `assets/`, salinan `src/vendor/`, dan `third-party-notices.txt`.
+- halaman daftar radio dan `404.html` dengan tag `<head>` bersama (warna tema, ikon, `og:site_name`). Tag ini ditulis sekali di `src/index.html`, di antara penanda `head:shared` dan `/head:shared`, lalu disalin oleh build.
+- `sitemap.xml`, `robots.txt`, aset dari `assets/`, salinan `src/vendor/`, dan `third-party-notices.txt`.
 - `_headers` berisi Content Security Policy, header keamanan lain, dan aturan cache.
 
 Build butuh koneksi internet untuk mengambil daftar stasiun. Kalau semua server Radio Browser gagal dijawab, build berhenti dengan pesan error dan deploy sebelumnya tetap dipakai.
