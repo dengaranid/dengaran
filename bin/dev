@@ -5,7 +5,7 @@
 #   bin/dev --public     build ke public/ lalu sajikan public/ (versi minify, sama dengan deploy)
 #   bin/dev 3000         pakai port lain; bisa juga lewat PORT=3000 bin/dev
 #
-# http.server tidak membaca public/_headers, jadi CSP dan cache baru bisa dicek sesudah deploy.
+# Server lokal tidak membaca public/_headers, jadi CSP dan cache baru bisa dicek sesudah deploy.
 
 set -euo pipefail
 
@@ -78,4 +78,5 @@ if [ "$DIR" = "public" ]; then
 fi
 
 echo "Menyajikan $(paint 1 36 "$DIR/") di $(paint 1 "1;4;32" "http://localhost:$PORT/") $(paint 1 2 "(Ctrl+C untuk berhenti)")"
-exec python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT/$DIR"
+# /<nama> disajikan dari <nama>.html seperti Cloudflare Pages; lihat scripts/dev_server.py.
+exec python3 "$ROOT/scripts/dev_server.py" "$PORT" "$ROOT/$DIR"

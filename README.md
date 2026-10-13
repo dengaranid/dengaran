@@ -29,6 +29,7 @@ src/                     sumber aplikasi (index.html, styles.css, app.js)
 src/vendor/              library pihak ketiga yang dimuat saat dibutuhkan (hls.js)
 assets/                  favicon, apple-touch-icon, gambar preview og-image
 scripts/build_public.py  script build ke public/
+scripts/dev_server.py    server lokal untuk bin/dev
 docs/                    dokumentasi teknis, tidak ikut ke public/
 bin/dev                  server preview lokal
 bin/build                build ke public/
@@ -44,7 +45,7 @@ bin/dev --public     # build ke public/ lalu sajikan versi minify
 bin/dev 3000         # port lain, atau PORT=3000 bin/dev
 ```
 
-Script ini menjalankan `python3 -m http.server`, jadi tidak perlu dependensi lain. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian. Server ini tidak membaca `public/_headers`, jadi CSP dan aturan cache baru bisa dicek sesudah deploy.
+Script ini menjalankan `scripts/dev_server.py`, yang hanya memakai Python bawaan. Seperti Cloudflare Pages, server ini menyajikan `/radio-pop` dari `radio-pop.html` dan menjawab path yang tidak ada dengan `404.html`. Halaman daftar radio hanya ada di `public/`, jadi buka dengan `bin/dev --public`. Karena localhost bukan HTTPS, stasiun HTTP juga ikut tampil di hasil pencarian. Server ini tidak membaca `public/_headers`, jadi CSP dan aturan cache baru bisa dicek sesudah deploy.
 
 Output `bin/dev`, `bin/build`, dan `scripts/build_public.py` berwarna kalau dijalankan di terminal. Warna tidak dipakai saat output di-pipe atau ditulis ke log, termasuk log build Cloudflare Pages. Untuk menonaktifkannya di terminal, isi `NO_COLOR=1`.
 
