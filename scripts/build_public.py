@@ -38,8 +38,9 @@ SRC_DIR = ROOT / "src"
 ASSETS_DIR = ROOT / "assets"
 OUTPUT_DIR = ROOT / "public"
 
-# Placeholder: ganti dengan alamat Cloudflare Pages (atau domain sendiri), tanpa garis miring di akhir.
-SITE_URL = "https://dengaran.pages.dev"
+# Alamat produksi, tanpa garis miring di akhir. dengaran.pages.dev di-redirect 301 ke alamat ini
+# lewat Bulk Redirects di akun Cloudflare.
+SITE_URL = "https://dengaran.id"
 
 SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->"
 LANDING_LINKS_MARKER = "<!-- seo:landing-links diisi scripts/build_public.py -->"

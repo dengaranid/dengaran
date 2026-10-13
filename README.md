@@ -69,7 +69,7 @@ Build membutuhkan koneksi internet untuk mengambil daftar stasiun. Kalau semua s
 
 Tiap stasiun di halaman daftar radio menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` mengambil stasiun itu dari API, menyiapkannya di player tanpa memutar, lalu menghapus parameter dari alamat.
 
-`SITE_URL` di bagian atas `scripts/build_public.py` berisi alamat produksi (`https://dengaran.pages.dev`) dan dipakai untuk URL absolut di tag SEO, `robots.txt`, dan `sitemap.xml`. Ubah nilainya kalau situs pindah ke domain lain.
+`SITE_URL` di bagian atas `scripts/build_public.py` berisi alamat produksi (`https://dengaran.id`) dan dipakai untuk URL absolut di tag SEO, `robots.txt`, dan `sitemap.xml`. Ubah nilainya kalau situs pindah ke domain lain.
 
 ## Deploy ke Cloudflare Pages
 
@@ -80,7 +80,7 @@ Ada dua cara, dan pilihannya harus ditentukan saat membuat project, karena proje
 
 Project Dengaran memakai cara kedua, dengan pengaturan berikut:
 
-- Push ke `main` di-deploy ke produksi, `https://dengaran.pages.dev`.
+- Push ke `main` di-deploy ke produksi, `https://dengaran.id`. Alamat `https://dengaran.pages.dev` dan `https://www.dengaran.id` di-redirect 301 ke alamat ini: yang pertama lewat Bulk Redirects di akun Cloudflare (tanpa Include subdomains, supaya alamat preview tidak ikut di-redirect), yang kedua lewat Redirect Rule di zona `dengaran.id`.
 - Push ke `preview` di-deploy ke `https://preview.dengaran.pages.dev`, untuk mengecek perubahan sebelum masuk produksi. Branch lain tidak di-deploy (Preview branch: Custom branches, include `preview`).
 - Build watch paths berisi `src/*`, `assets/*`, `scripts/*`, dan `THIRD_PARTY_NOTICES.md`. Push yang hanya mengubah file lain, misalnya `README.md`, `docs/`, atau `bin/`, tidak memicu build. Push berisi 20 commit atau lebih tetap di-build.
 
