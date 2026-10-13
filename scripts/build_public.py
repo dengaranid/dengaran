@@ -13,10 +13,9 @@
 - Sisipkan script Cloudflare Web Analytics kalau CF_ANALYTICS_TOKEN diisi.
 - Tulis public/_headers berisi header keamanan dan cache.
 
-Minify JS memakai `bun build --minify` kalau bun ada di PATH: nama variabel ikut
-diperpendek, hasilnya sekitar 19% lebih kecil sesudah brotli. Kalau bun tidak ada, JS dan CSS
-di-minify dengan Python bawaan: komentar, indentasi, dan spasi berlebih dibuang; isi string,
-template literal, dan regex tidak diubah; nama variabel tidak diperpendek.
+CSS di-minify dengan Python bawaan. JS di-minify dengan `bun build --minify` kalau bun ada di
+PATH (di Cloudflare Pages lewat variabel BUN_VERSION). Kalau bun tidak ada, app.js disalin tanpa
+minify dan build menulis peringatan.
 
 Jalankan dari root project:  python3 scripts/build_public.py
 """
@@ -181,165 +180,9 @@ def minify_css(css):
 
 # ---------- Minify JS ----------
 
-# Sesudah token ini, "/" berarti awal regex, bukan pembagian.
-REGEX_PREFIX_CHARS = set("(,=:[!&|?{};+-*%<>~^")
-REGEX_PREFIX_WORDS = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete", "void", "throw"}
-
-
-def minify_js(source):
-    out = []
-    i = 0
-    n = len(source)
-    pending_space = False
-    pending_newline = False
-
-    def last_significant():
-        for chunk in reversed(out):
-            stripped = chunk.rstrip()
-            if stripped:
-                return stripped
-        return ""
-
-    def regex_allowed():
-        prev = last_significant()
-        if not prev:
-            return True
-        if prev[-1] in REGEX_PREFIX_CHARS:
-            return True
-        word = re.search(r"[A-Za-z_$][\w$]*$", prev)
-        return bool(word and word.group(0) in REGEX_PREFIX_WORDS)
-
-    def flush_whitespace(next_char):
-        nonlocal pending_space, pending_newline
-        if out:
-            prev = out[-1][-1] if out[-1] else ""
-            both_words = bool(re.match(r"[\w$]", prev) and re.match(r"[\w$]", next_char))
-            same_sign = prev in "+-" and next_char == prev
-            # Baris baru boleh dibuang hanya di posisi yang tidak pernah memicu automatic
-            # semicolon insertion: sesudah pembuka/operator, atau sebelum penutup/titik.
-            # "/" tidak termasuk karena bisa akhir regex.
-            newline_droppable = prev in "{[(,;:=+-*%&|?!<>" or next_char in "})],.;:?"
-            if pending_newline and not newline_droppable:
-                out.append("\n")
-            elif (pending_newline or pending_space) and (both_words or same_sign):
-                out.append(" ")
-        pending_space = False
-        pending_newline = False
-
-    def read_string(start, quote):
-        j = start + 1
-        while j < n:
-            c = source[j]
-            if c == "\\":
-                j += 2
-                continue
-            if c == quote:
-                return j + 1
-            j += 1
-        raise ValueError(f"string tidak ditutup di posisi {start}")
-
-    def read_template(start):
-        j = start + 1
-        while j < n:
-            c = source[j]
-            if c == "\\":
-                j += 2
-                continue
-            if c == "`":
-                return j + 1
-            if c == "$" and j + 1 < n and source[j + 1] == "{":
-                j = read_template_expression(j + 2)
-                continue
-            j += 1
-        raise ValueError(f"template literal tidak ditutup di posisi {start}")
-
-    def read_template_expression(start):
-        depth = 1
-        j = start
-        while j < n:
-            c = source[j]
-            if c in "'\"":
-                j = read_string(j, c)
-                continue
-            if c == "`":
-                j = read_template(j)
-                continue
-            if c == "{":
-                depth += 1
-            elif c == "}":
-                depth -= 1
-                if depth == 0:
-                    return j + 1
-            j += 1
-        raise ValueError(f"ekspresi ${{}} tidak ditutup di posisi {start}")
-
-    def read_regex(start):
-        j = start + 1
-        in_class = False
-        while j < n:
-            c = source[j]
-            if c == "\\":
-                j += 2
-                continue
-            if c == "[":
-                in_class = True
-            elif c == "]":
-                in_class = False
-            elif c == "/" and not in_class:
-                j += 1
-                while j < n and re.match(r"[a-z]", source[j]):
-                    j += 1
-                return j
-            elif c == "\n":
-                raise ValueError(f"regex tidak ditutup di posisi {start}")
-            j += 1
-        raise ValueError(f"regex tidak ditutup di posisi {start}")
-
-    while i < n:
-        c = source[i]
-
-        if c in " \t\r":
-            pending_space = True
-            i += 1
-            continue
-        if c == "\n":
-            pending_newline = True
-            i += 1
-            continue
-        if source.startswith("//", i):
-            end = source.find("\n", i)
-            i = n if end == -1 else end
-            continue
-        if source.startswith("/*", i):
-            end = source.find("*/", i + 2)
-            if end == -1:
-                raise ValueError(f"komentar blok tidak ditutup di posisi {i}")
-            i = end + 2
-            pending_space = True
-            continue
-
-        flush_whitespace(c)
-
-        if c in "'\"":
-            end = read_string(i, c)
-        elif c == "`":
-            end = read_template(i)
-        elif c == "/" and regex_allowed():
-            end = read_regex(i)
-        else:
-            end = i + 1
-
-        out.append(source[i:end])
-        i = end
-
-    text = "".join(out)
-    # Baris kosong beruntun dirapatkan; spasi di sekitar baris baru dibuang.
-    text = re.sub(r"[ \t]*\n[ \t\n]*", "\n", text)
-    return text.strip() + "\n"
-
-
 def minify_js_bun(path):
-    """Minify dengan bun. Mengembalikan None kalau bun tidak ada di PATH.
+    """Minify dengan bun. Mengembalikan None kalau bun tidak ada di PATH. Gagalnya bun build
+    menaikkan ValueError, supaya JS yang tidak bisa di-parse menghentikan build.
 
     app.js tidak punya import, jadi bun hanya me-minify satu file tanpa node_modules. Format iife
     membungkus semua deklarasi top-level; aman karena index.html tidak punya handler inline.
@@ -894,19 +737,19 @@ def main():
     css = minify_css(css_source)
     try:
         js = minify_js_bun(SRC_DIR / "app.js")
-        js_minifier = "bun"
-        # bun tidak ada di PATH: pakai minifier Python, hasilnya lebih besar tapi tetap benar.
-        if js is None:
-            js = minify_js(js_source)
-            js_minifier = "Python"
     except ValueError as error:
         fail(f"Minify JS gagal: {error}")
+    # bun tidak ada di PATH: app.js dipakai apa adanya. Hasilnya benar, hanya lebih besar.
+    js_minified = js is not None
+    if not js_minified:
+        js = js_source
 
     head = shared_head(html)
     built_on = date.today()
     landing_pages = landing_pages_with_stations(fetch_landing_stations(js_source))
 
     css_name = f"styles.{content_hash(css)}.min.css"
+    # Akhiran .min.js tetap dipakai tanpa bun, supaya aturan cache di _headers tetap berlaku.
     js_name = f"app.{content_hash(js)}.min.js"
 
     html = html.replace(SEO_MARKER, seo_tags(html))
@@ -990,7 +833,11 @@ def main():
     css_size, js_size = size(css), size(js)
     print(paint("Build selesai", "1;32") + paint(f" untuk {SITE_URL}", "2"))
     print(f"  {paint('public/' + css_name, '36')}  {size(css_source)} -> {css_size} byte  {saved(size(css_source), css_size)}")
-    print(f"  {paint('public/' + js_name, '36')}  {size(js_source)} -> {js_size} byte  {saved(size(js_source), js_size)}, minify {js_minifier}")
+    if js_minified:
+        print(f"  {paint('public/' + js_name, '36')}  {size(js_source)} -> {js_size} byte  {saved(size(js_source), js_size)}")
+    else:
+        print(f"  {paint('public/' + js_name, '36')}  {js_size} byte  "
+              + paint("tanpa minify, bun tidak ada di PATH", "33"))
     print(f"  {paint('public/', '36')}index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt")
     print(f"  {paint('public/<slug>.html', '36')}  {len(landing_pages)} halaman daftar radio: "
           + ", ".join(f"{page['slug']} ({page['total']})" for page in landing_pages))

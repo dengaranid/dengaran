@@ -15,7 +15,7 @@ Gratis, tanpa iklan, tanpa daftar akun, dan tanpa cookie. Data stasiun berasal d
 
 ## Menjalankan
 
-Butuh Python 3. [Bun](https://bun.sh) dipakai untuk minify JS kalau tersedia.
+Butuh Python 3. [Bun](https://bun.sh) dipakai untuk minify JS. Tanpa Bun, JS disalin tanpa minify.
 
 ```bash
 bin/dev              # server lokal di http://localhost:8080
