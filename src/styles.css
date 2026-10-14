@@ -684,6 +684,12 @@ kbd {
   background: var(--panel);
 }
 
+.picker-sublist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .picker-group {
   padding: 12px 12px 4px;
   color: var(--muted);

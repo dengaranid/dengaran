@@ -432,14 +432,20 @@ def landing_pages_with_stations(stations):
     return pages
 
 
-# Sama dengan bitrateKbps di src/app.js: bitrate yang ditulis dalam bps dibagi 1000, dan nilai
-# di atas batas audio (biasanya total stream HLS berisi video) dianggap tidak diketahui.
+# Sama dengan bitrateKbps di src/app.js: kelipatan 1000 mulai BPS_THRESHOLD dianggap bps dan
+# dibagi 1000, dan nilai di atas batas audio (biasanya total stream HLS berisi video) dianggap
+# tidak diketahui.
 MAX_AUDIO_KBPS = 4608
+BPS_THRESHOLD = 16000
 
 
 def bitrate_kbps(station):
-    kbps = station.get("bitrate") or 0
-    if kbps > MAX_AUDIO_KBPS and kbps % 1000 == 0:
+    # Data API berasal dari pihak ketiga: nilai yang bukan angka dianggap tidak diketahui.
+    try:
+        kbps = int(station.get("bitrate") or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    if kbps >= BPS_THRESHOLD and kbps % 1000 == 0:
         kbps //= 1000
     return kbps if 0 < kbps <= MAX_AUDIO_KBPS else 0
 

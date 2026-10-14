@@ -247,7 +247,9 @@ let sortActiveIndex = 0;
 // Negara hasil tebakan browser, ditampilkan di grup Disarankan.
 let detectedCountry = DEFAULT_COUNTRY;
 let recentCountries = loadJson(RECENT_COUNTRIES_KEY, []);
-if (!Array.isArray(recentCountries)) recentCountries = [];
+recentCountries = Array.isArray(recentCountries)
+  ? recentCountries.filter(code => typeof code === "string" && /^[A-Z]{2}$/.test(code))
+  : [];
 // Daftar negara untuk pemilih: { code, name, english, key }. key adalah teks yang sudah
 // dinormalisasi untuk pencocokan.
 let countryOptions = [];
@@ -330,7 +332,7 @@ searchClearButton.addEventListener("click", () => {
 });
 countryButton.addEventListener("click", () => {
   if (countryPopover.hidden) openCountryPicker();
-  else closeCountryPicker({ focusButton: false });
+  else closeCountryPicker();
 });
 countryButton.addEventListener("keydown", handleCountryButtonKey);
 countryFilter.addEventListener("input", () => renderCountryList(countryFilter.value));
@@ -346,20 +348,34 @@ document.addEventListener("pointerdown", event => {
   if (countryPopover.contains(event.target) || countryButton.contains(event.target)) return;
   closeCountryPicker({ focusButton: false });
 });
+// Saat panel terbuka, mousedown di tombol pemilih dicegah supaya fokus tidak pindah. Klik tombol
+// lalu hanya menutup panel lewat handler click, tanpa ditutup lebih dulu oleh focusout.
+countryButton.addEventListener("mousedown", event => {
+  if (!countryPopover.hidden) event.preventDefault();
+});
 countryPopover.addEventListener("focusout", event => {
-  // Tab keluar dari pemilih menutupnya. Fokus ke tombol pemilih ditangani tombol itu sendiri.
-  if (event.relatedTarget && !countryPopover.contains(event.relatedTarget) && event.relatedTarget !== countryButton) {
+  // Tab atau Shift+Tab keluar dari panel menutupnya. relatedTarget null (klik di area yang tidak
+  // bisa difokus, atau pindah jendela) ditangani handler pointerdown dokumen.
+  if (event.relatedTarget && !countryPopover.contains(event.relatedTarget)) {
     closeCountryPicker({ focusButton: false });
   }
 });
 sortButton.addEventListener("click", () => {
   if (sortPopover.hidden) openSortPicker();
-  else closeSortPicker({ focusButton: false });
+  else closeSortPicker();
 });
 sortButton.addEventListener("keydown", event => {
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
     openSortPicker();
+  } else if (event.key === "Escape" && !sortPopover.hidden) {
+    event.preventDefault();
+    closeSortPicker();
+  } else if (isPickerLetter(event)) {
+    // Sama seperti tombol negara: huruf membuka panel, lalu melompat ke opsi berhuruf awal itu.
+    event.preventDefault();
+    openSortPicker();
+    jumpSortToLetter(event.key);
   }
 });
 sortList.addEventListener("keydown", handleSortListKey);
@@ -372,8 +388,12 @@ document.addEventListener("pointerdown", event => {
   if (sortPopover.contains(event.target) || sortButton.contains(event.target)) return;
   closeSortPicker({ focusButton: false });
 });
+sortButton.addEventListener("mousedown", event => {
+  if (!sortPopover.hidden) event.preventDefault();
+});
 sortList.addEventListener("blur", event => {
-  if (event.relatedTarget !== sortButton) closeSortPicker({ focusButton: false });
+  // Sama seperti pemilih negara: relatedTarget null ditangani handler pointerdown dokumen.
+  if (event.relatedTarget) closeSortPicker({ focusButton: false });
 });
 loadMoreButton.addEventListener("click", () => loadStations({ append: true }));
 clearTagButton.addEventListener("click", () => {
@@ -495,9 +515,30 @@ function detectCountry() {
 }
 
 // Negara hasil tebakan langsung dipakai pencarian pertama, tanpa menunggu /countries.
+// Sebelum /countries selesai dimuat, pemilih memakai FALLBACK_COUNTRIES ditambah negara tebakan.
 function selectInitialCountry() {
   detectedCountry = detectCountry();
+  setCountryOptions(withCountry(FALLBACK_COUNTRIES.map(([code, name]) => [code, name, ""]), detectedCountry));
   setSelectedCountry(detectedCountry);
+}
+
+function withCountry(countries, code) {
+  if (code === ALL_COUNTRIES || countries.some(([item]) => item === code)) return countries;
+  return [...countries, [code, localizedCountry(code, code), ""]];
+}
+
+function setCountryOptions(countries) {
+  // API bisa mengembalikan kode yang sama lebih dari sekali dengan ejaan nama berbeda.
+  const seen = new Set();
+  countryOptions = countries
+    .filter(([code]) => !seen.has(code) && seen.add(code))
+    .map(([code, name, english]) => ({
+      code,
+      name,
+      english,
+      key: normalizeSearchText(`${name} ${english} ${code}`)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "id"));
 }
 
 function setSelectedCountry(code) {
@@ -544,20 +585,11 @@ async function loadCountries() {
   }
 
   if (!countries || countries.length === 0) {
-    countries = FALLBACK_COUNTRIES.map(([code, name]) => [code, name, ""]);
+    // /countries gagal: daftar cadangan tetap memuat negara yang sedang dipilih.
+    countries = withCountry(FALLBACK_COUNTRIES.map(([code, name]) => [code, name, ""]), selectedCountry);
   }
 
-  // API bisa mengembalikan kode yang sama lebih dari sekali dengan ejaan nama berbeda.
-  const seen = new Set();
-  countryOptions = countries
-    .filter(([code]) => !seen.has(code) && seen.add(code))
-    .map(([code, name, english]) => ({
-      code,
-      name,
-      english,
-      key: normalizeSearchText(`${name} ${english} ${code}`)
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name, "id"));
+  setCountryOptions(countries);
 
   if (selectedCountry !== ALL_COUNTRIES && !countryOptions.some(item => item.code === selectedCountry)) {
     // Negara hasil tebakan tidak punya stasiun di API: muat ulang dengan Indonesia.
@@ -642,27 +674,36 @@ function renderCountryList(query) {
   countryMatches = matchCountries(query);
   const term = normalizeSearchText(query);
 
+  // Opsi bergrup dibungkus role="group" dengan judul sebagai label, karena listbox hanya boleh
+  // berisi option dan group. Negara yang muncul dua kali hanya ditandai terpilih di kemunculan
+  // pertama.
   const groupTitles = { suggested: "Disarankan", az: "Daftar negara A-Z" };
-  countryList.innerHTML = countryMatches
-    .map((option, index) => {
-      const selected = option.code === selectedCountry;
-      const icon = option.code === ALL_COUNTRIES ? COUNTRY_ICONS.globe : "";
-      const startsGroup = option.group && option.group !== countryMatches[index - 1]?.group;
-      const title = startsGroup
-        ? `<li class="picker-group" role="presentation">${groupTitles[option.group]}</li>`
-        : "";
-      return `${title}<li id="country-option-${index}" class="picker-option${option.code === ALL_COUNTRIES ? " is-all" : ""}"
-        role="option" aria-selected="${selected}" data-code="${escapeHtml(option.code)}">
-        ${icon}<span class="picker-option-name">${highlightMatch(option.name, term)}</span>${selected ? COUNTRY_ICONS.check : ""}
-      </li>`;
-    })
-    .join("");
+  const selectedIndex = countryMatches.findIndex(option => option.code === selectedCountry);
+  let html = "";
+  countryMatches.forEach((option, index) => {
+    const previousGroup = countryMatches[index - 1]?.group;
+    if (option.group !== previousGroup) {
+      if (previousGroup) html += "</ul></li>";
+      if (option.group) {
+        html += `<li role="group" aria-labelledby="country-group-${option.group}">`
+          + `<div id="country-group-${option.group}" class="picker-group">${groupTitles[option.group]}</div>`
+          + `<ul class="picker-sublist" role="none">`;
+      }
+    }
+    const selected = index === selectedIndex;
+    const icon = option.code === ALL_COUNTRIES ? COUNTRY_ICONS.globe : "";
+    html += `<li id="country-option-${index}" class="picker-option${option.code === ALL_COUNTRIES ? " is-all" : ""}"
+      role="option" aria-selected="${selected}" data-code="${escapeHtml(option.code)}">
+      ${icon}<span class="picker-option-name">${highlightMatch(option.name, term)}</span>${selected ? COUNTRY_ICONS.check : ""}
+    </li>`;
+  });
+  if (countryMatches[countryMatches.length - 1]?.group) html += "</ul></li>";
+  countryList.innerHTML = html;
 
   countryEmpty.hidden = countryMatches.length > 0;
   // Daftar selalu dibuka dari atas. Tanpa ketikan, sorotan ada di pilihan sekarang, yang pertama
   // kali muncul di dekat atas (di grup Disarankan). Dengan ketikan, di hasil teratas.
   countryList.scrollTop = 0;
-  const selectedIndex = countryMatches.findIndex(option => option.code === selectedCountry);
   setCountryActive(term ? 0 : Math.max(selectedIndex, 0));
 }
 
@@ -729,13 +770,20 @@ function handleCountryButtonKey(event) {
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault();
     openCountryPicker();
-  } else if (
-    event.key.length === 1 && event.key !== " " && event.key !== "/"
-    && !event.metaKey && !event.ctrlKey && !event.altKey
-  ) {
+  } else if (event.key === "Escape" && !countryPopover.hidden) {
+    event.preventDefault();
+    closeCountryPicker();
+  } else if (isPickerLetter(event)) {
     event.preventDefault();
     openCountryPicker(event.key);
   }
+}
+
+// Satu karakter yang diketik di tombol pemilih. Spasi tetap menekan tombol, dan "/" tetap
+// menjadi pintasan ke kolom pencarian.
+function isPickerLetter(event) {
+  return event.key.length === 1 && event.key !== " " && event.key !== "/"
+    && !event.metaKey && !event.ctrlKey && !event.altKey;
 }
 
 // ---------- Pemilih urutan ----------
@@ -792,20 +840,24 @@ function handleSortListKey(event) {
     closeSortPicker({ focusButton: false });
     return;
   } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
-    // Huruf awal melompat ke opsi yang diawali huruf itu, seperti select bawaan.
-    const letter = event.key.toLowerCase();
-    const count = SORT_OPTIONS.length;
-    for (let step = 1; step <= count; step++) {
-      const index = (sortActiveIndex + step) % count;
-      if (SORT_OPTIONS[index].label.toLowerCase().startsWith(letter)) {
-        setSortActive(index);
-        break;
-      }
-    }
+    jumpSortToLetter(event.key);
   } else {
     return;
   }
   event.preventDefault();
+}
+
+// Huruf awal melompat ke opsi berikutnya yang diawali huruf itu, seperti select bawaan.
+function jumpSortToLetter(key) {
+  const letter = key.toLowerCase();
+  const count = SORT_OPTIONS.length;
+  for (let step = 1; step <= count; step++) {
+    const index = (sortActiveIndex + step) % count;
+    if (SORT_OPTIONS[index].label.toLowerCase().startsWith(letter)) {
+      setSortActive(index);
+      return;
+    }
+  }
 }
 
 // ---------- Daftar radio: favorit + hasil pencarian ----------
@@ -859,6 +911,9 @@ async function loadStations({ append = false } = {}) {
     reverse: order === "name" ? "false" : "true"
   });
   if (countryCode !== ALL_COUNTRIES) params.set("countrycode", countryCode);
+  // Urutan bitrate dihitung server dari angka mentah. Tanpa batas ini, stasiun yang menulis
+  // bitrate dalam bps (512000) atau bitrate total stream video berada di urutan teratas.
+  if (order === "bitrate") params.set("bitrateMax", String(MAX_AUDIO_KBPS));
   if (activeTag) params.set("tag", activeTag);
   if (SECURE_PAGE) params.set("is_https", "true");
 
@@ -985,7 +1040,9 @@ function renderStations() {
         </div>
       `;
     } else {
-      stationList.innerHTML = `<div class="empty">Belum ada radio untuk ${escapeHtml(selectedCountryName())}. Coba negara lain.</div>`;
+      stationList.innerHTML = selectedCountry === ALL_COUNTRIES
+        ? `<div class="empty">Belum ada radio yang bisa ditampilkan.</div>`
+        : `<div class="empty">Belum ada radio untuk ${escapeHtml(selectedCountryName())}. Coba negara lain.</div>`;
     }
 
     updateStationCount();
@@ -1092,15 +1149,19 @@ function qualityText(station) {
 }
 
 // Radio Browser menyimpan bitrate dari pengirim data apa adanya, dan sebagian menulisnya dalam
-// bps (128000 untuk 128 kbps). Nilai di atas batas audio yang merupakan kelipatan 1000 dibagi
-// 1000. Nilai yang tetap di atas batas, misalnya 6324 untuk stream HLS berisi video, adalah
-// bitrate total stream, bukan audio, jadi tidak ditampilkan. Batasnya 4608 kbps: audio lossless
-// 24-bit 96 kHz stereo. Sama dengan bitrate_kbps di scripts/build_public.py.
+// bps (128000 untuk 128 kbps). Kelipatan 1000 mulai 16000 dibagi 1000. Nilai yang tetap di atas
+// batas, misalnya 6324 untuk stream HLS berisi video, adalah bitrate total stream, bukan audio,
+// jadi tidak ditampilkan. Batasnya 4608 kbps: audio lossless 24-bit 96 kHz stereo. Aturan ini
+// heuristik: bitrate total video yang kebetulan kelipatan 1000 mulai 16000 tetap terbaca sebagai
+// bps. Sama dengan bitrate_kbps di scripts/build_public.py.
 const MAX_AUDIO_KBPS = 4608;
+// Nilai bps terkecil yang masuk akal, 16 kbps. Kelipatan 1000 di bawahnya (5000, 8000) adalah
+// bitrate total stream video dalam kbps, bukan bps, jadi tidak dibagi dan ikut disembunyikan.
+const BPS_THRESHOLD = 16000;
 
 function bitrateKbps(value) {
   let kbps = Number(value) || 0;
-  if (kbps > MAX_AUDIO_KBPS && kbps % 1000 === 0) kbps /= 1000;
+  if (kbps >= BPS_THRESHOLD && kbps % 1000 === 0) kbps /= 1000;
   return kbps > 0 && kbps <= MAX_AUDIO_KBPS ? kbps : 0;
 }
 
