@@ -432,6 +432,18 @@ def landing_pages_with_stations(stations):
     return pages
 
 
+# Sama dengan bitrateKbps di src/app.js: bitrate yang ditulis dalam bps dibagi 1000, dan nilai
+# di atas batas audio (biasanya total stream HLS berisi video) dianggap tidak diketahui.
+MAX_AUDIO_KBPS = 4608
+
+
+def bitrate_kbps(station):
+    kbps = station.get("bitrate") or 0
+    if kbps > MAX_AUDIO_KBPS and kbps % 1000 == 0:
+        kbps //= 1000
+    return kbps if 0 < kbps <= MAX_AUDIO_KBPS else 0
+
+
 def station_meta(station):
     """Kota, tiga tag pertama, codec, dan bitrate, dipisah titik tengah."""
     parts = []
@@ -445,7 +457,7 @@ def station_meta(station):
     codec = (station.get("codec") or "").strip().upper()
     quality = " ".join(
         part for part in [codec if codec and codec != "UNKNOWN" else "",
-                          f"{station['bitrate']} kbps" if station.get("bitrate") else ""] if part
+                          f"{bitrate_kbps(station)} kbps" if bitrate_kbps(station) else ""] if part
     )
     if quality:
         parts.append(quality)
@@ -502,8 +514,8 @@ def landing_summary(page):
             )
 
     # bitrate 0 atau kosong berarti tidak diketahui, jadi tidak dihitung di kedua sisi.
-    known = [station for station in stations if station.get("bitrate")]
-    high = sum(1 for station in known if station["bitrate"] >= 128)
+    known = [station for station in stations if bitrate_kbps(station)]
+    high = sum(1 for station in known if bitrate_kbps(station) >= 128)
     codecs = top_counts(
         codec for codec in ((station.get("codec") or "").strip().upper() for station in stations)
         if codec and codec != "UNKNOWN"

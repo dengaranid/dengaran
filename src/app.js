@@ -1086,8 +1086,22 @@ function qualityText(station) {
   const codec = (station.codec || "").split(",")[0].trim().toUpperCase();
   const parts = [];
   if (codec && codec !== "UNKNOWN") parts.push(codec);
-  if (station.bitrate) parts.push(`${station.bitrate} kbps`);
+  const kbps = bitrateKbps(station.bitrate);
+  if (kbps) parts.push(`${kbps} kbps`);
   return parts.join(" ");
+}
+
+// Radio Browser menyimpan bitrate dari pengirim data apa adanya, dan sebagian menulisnya dalam
+// bps (128000 untuk 128 kbps). Nilai di atas batas audio yang merupakan kelipatan 1000 dibagi
+// 1000. Nilai yang tetap di atas batas, misalnya 6324 untuk stream HLS berisi video, adalah
+// bitrate total stream, bukan audio, jadi tidak ditampilkan. Batasnya 4608 kbps: audio lossless
+// 24-bit 96 kHz stereo. Sama dengan bitrate_kbps di scripts/build_public.py.
+const MAX_AUDIO_KBPS = 4608;
+
+function bitrateKbps(value) {
+  let kbps = Number(value) || 0;
+  if (kbps > MAX_AUDIO_KBPS && kbps % 1000 === 0) kbps /= 1000;
+  return kbps > 0 && kbps <= MAX_AUDIO_KBPS ? kbps : 0;
 }
 
 function createStationCard(station) {

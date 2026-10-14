@@ -5,6 +5,12 @@
       "name": "CNN Indonesia",
       "date": "2026-10-13",
       "reason": "Server menolak Referer dari domain lain (403), dan HLS bawaan Chrome macet saat pindah bitrate. Tidak bisa diputar dari Dengaran."
+    },
+    {
+      "id": "8f61dbb9-775e-4c23-92b2-5a8665fcde92",
+      "name": "SexFM",
+      "date": "2026-10-14",
+      "reason": "Nama stasiun bermuatan seksual. Tag-nya tidak memuat tag di daftar tags, jadi disaring per stasiun."
     }
   ],
   "tags": ["erotic", "porn", "xxx", "nsfw"]
