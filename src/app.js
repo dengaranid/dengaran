@@ -42,6 +42,7 @@ function isBlockedStation(station) {
 }
 
 const DEFAULT_COUNTRY = "ID";
+const ALL_COUNTRIES = "";
 // Di halaman HTTPS browser memblokir audio dari alamat http://, jadi pencarian
 // hanya mengambil stasiun HTTPS. Di http:// atau localhost semua stasiun tampil.
 const SECURE_PAGE = location.protocol === "https:";
@@ -97,6 +98,8 @@ const LAST_STATION_KEY = "radio_online_last_station_v1";
 const HISTORY_KEY = "radio_online_history_v1";
 const VOLUME_KEY = "radio_online_volume_v1";
 const SHORTCUTS_KEY = "radio_online_shortcuts_v1";
+const RECENT_COUNTRIES_KEY = "radio_online_recent_countries_v1";
+const RECENT_COUNTRIES_LIMIT = 3;
 
 // Fallback jika endpoint /countries gagal dimuat.
 const FALLBACK_COUNTRIES = [
@@ -129,6 +132,12 @@ const ICONS = {
   timer: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
 };
 
+// Ikon Lucide "globe" dan "check" untuk pemilih negara.
+const COUNTRY_ICONS = {
+  globe: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+  check: '<svg class="icon country-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
+};
+
 const NOW_DOT_HTML = '<span class="now-dot" aria-hidden="true"></span>';
 
 // Siaran live tidak punya jeda: hanya Putar dan Stop.
@@ -150,7 +159,12 @@ const layout = document.getElementById("layout");
 const searchInput = document.getElementById("searchInput");
 const searchClearButton = document.getElementById("searchClearButton");
 const controlsForm = document.getElementById("controls");
-const countrySelect = document.getElementById("countrySelect");
+const countryButton = document.getElementById("countryButton");
+const countryButtonText = document.getElementById("countryButtonText");
+const countryPopover = document.getElementById("countryPopover");
+const countryFilter = document.getElementById("countryFilter");
+const countryList = document.getElementById("countryList");
+const countryEmpty = document.getElementById("countryEmpty");
 const sortSelect = document.getElementById("sortSelect");
 const activeFilter = document.getElementById("activeFilter");
 const activeTagLabel = document.getElementById("activeTagLabel");
@@ -215,6 +229,18 @@ let isBuffering = false;
 // Posisi audio saat status menunggu dimulai. Kalau currentTime melewati nilai ini, audio masih berjalan.
 let bufferingStartTime = 0;
 let activeTag = "";
+// Kode negara yang dipakai pencarian. ALL_COUNTRIES berarti tanpa filter negara.
+let selectedCountry = DEFAULT_COUNTRY;
+// Negara hasil tebakan browser, ditampilkan di grup Disarankan.
+let detectedCountry = DEFAULT_COUNTRY;
+let recentCountries = loadJson(RECENT_COUNTRIES_KEY, []);
+if (!Array.isArray(recentCountries)) recentCountries = [];
+// Daftar negara untuk pemilih: { code, name, english, key }. key adalah teks yang sudah
+// dinormalisasi untuk pencocokan.
+let countryOptions = [];
+// Opsi yang sedang disorot di pemilih negara, berupa indeks di countryMatches.
+let countryMatches = [];
+let countryActiveIndex = -1;
 let currentOffset = 0;
 let hasMore = false;
 let searchAbortController = null;
@@ -289,7 +315,30 @@ searchClearButton.addEventListener("click", () => {
   startNewSearch();
   searchInput.focus();
 });
-countrySelect.addEventListener("change", () => startNewSearch());
+countryButton.addEventListener("click", () => {
+  if (countryPopover.hidden) openCountryPicker();
+  else closeCountryPicker({ focusButton: false });
+});
+countryButton.addEventListener("keydown", handleCountryButtonKey);
+countryFilter.addEventListener("input", () => renderCountryList(countryFilter.value));
+countryFilter.addEventListener("keydown", handleCountryFilterKey);
+// mousedown dicegah supaya fokus tetap di kolom ketik saat opsi diklik.
+countryList.addEventListener("mousedown", event => event.preventDefault());
+countryList.addEventListener("click", event => {
+  const option = event.target.closest('[role="option"]');
+  if (option) chooseCountry(option.dataset.code);
+});
+document.addEventListener("pointerdown", event => {
+  if (countryPopover.hidden) return;
+  if (countryPopover.contains(event.target) || countryButton.contains(event.target)) return;
+  closeCountryPicker({ focusButton: false });
+});
+countryPopover.addEventListener("focusout", event => {
+  // Tab keluar dari pemilih menutupnya. Fokus ke tombol pemilih ditangani tombol itu sendiri.
+  if (event.relatedTarget && !countryPopover.contains(event.relatedTarget) && event.relatedTarget !== countryButton) {
+    closeCountryPicker({ focusButton: false });
+  }
+});
 sortSelect.addEventListener("change", () => startNewSearch());
 loadMoreButton.addEventListener("click", () => loadStations({ append: true }));
 clearTagButton.addEventListener("click", () => {
@@ -410,16 +459,21 @@ function detectCountry() {
   return DEFAULT_COUNTRY;
 }
 
-// Select negara di HTML baru berisi Indonesia. Negara hasil tebakan ditambahkan
-// sebagai opsi sementara, supaya pencarian pertama tidak menunggu /countries.
+// Negara hasil tebakan langsung dipakai pencarian pertama, tanpa menunggu /countries.
 function selectInitialCountry() {
-  const code = detectCountry();
-  if (code === DEFAULT_COUNTRY) return;
-  const option = document.createElement("option");
-  option.value = code;
-  option.textContent = localizedCountry(code, code);
-  countrySelect.append(option);
-  countrySelect.value = code;
+  detectedCountry = detectCountry();
+  setSelectedCountry(detectedCountry);
+}
+
+function setSelectedCountry(code) {
+  selectedCountry = code;
+  countryButtonText.textContent = countryLabel(code);
+}
+
+function countryLabel(code) {
+  if (code === ALL_COUNTRIES) return "Semua negara";
+  const option = countryOptions.find(item => item.code === code);
+  return option ? option.name : localizedCountry(code, code);
 }
 
 function createRegionNames() {
@@ -450,35 +504,202 @@ async function loadCountries() {
       .filter(item => item.iso_3166_1 && item.name)
       .map(item => {
         const code = item.iso_3166_1.toUpperCase();
-        return [code, localizedCountry(code, item.name)];
-      })
-      .sort((a, b) => a[1].localeCompare(b[1], "id"));
+        return [code, localizedCountry(code, item.name), item.name];
+      });
   }
 
   if (!countries || countries.length === 0) {
-    countries = FALLBACK_COUNTRIES;
+    countries = FALLBACK_COUNTRIES.map(([code, name]) => [code, name, ""]);
   }
 
-  const previousValue = countrySelect.value || DEFAULT_COUNTRY;
+  // API bisa mengembalikan kode yang sama lebih dari sekali dengan ejaan nama berbeda.
+  const seen = new Set();
+  countryOptions = countries
+    .filter(([code]) => !seen.has(code) && seen.add(code))
+    .map(([code, name, english]) => ({
+      code,
+      name,
+      english,
+      key: normalizeSearchText(`${name} ${english} ${code}`)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "id"));
 
-  countrySelect.innerHTML = countries
-    .map(([code, name]) =>
-      `<option value="${escapeHtml(code)}">${escapeHtml(name)}</option>`
-    )
-    .join("");
-
-  // Pastikan default/pilihan sebelumnya tetap terpilih.
-  countrySelect.value = previousValue;
-  if (countrySelect.selectedIndex === -1) {
+  if (selectedCountry !== ALL_COUNTRIES && !countryOptions.some(item => item.code === selectedCountry)) {
     // Negara hasil tebakan tidak punya stasiun di API: muat ulang dengan Indonesia.
-    countrySelect.value = DEFAULT_COUNTRY;
+    setSelectedCountry(DEFAULT_COUNTRY);
     startNewSearch();
+  } else {
+    setSelectedCountry(selectedCountry);
   }
+  if (!countryPopover.hidden) renderCountryList(countryFilter.value);
 }
 
 function selectedCountryName() {
-  const option = countrySelect.options[countrySelect.selectedIndex];
-  return option ? option.textContent : "negara ini";
+  return countryLabel(selectedCountry);
+}
+
+// Huruf kecil tanpa tanda diakritik, supaya "cote" cocok dengan "Côte d'Ivoire".
+function normalizeSearchText(text) {
+  return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+// ---------- Pemilih negara ----------
+
+function openCountryPicker(initialText = "") {
+  countryPopover.hidden = false;
+  countryButton.setAttribute("aria-expanded", "true");
+  countryFilter.value = initialText;
+  renderCountryList(initialText);
+  countryFilter.focus();
+}
+
+function closeCountryPicker({ focusButton = true } = {}) {
+  if (countryPopover.hidden) return;
+  countryPopover.hidden = true;
+  countryButton.setAttribute("aria-expanded", "false");
+  countryFilter.removeAttribute("aria-activedescendant");
+  if (focusButton) countryButton.focus();
+}
+
+function chooseCountry(code) {
+  const changed = code !== selectedCountry;
+  if (code !== ALL_COUNTRIES) {
+    recentCountries = [code, ...recentCountries.filter(item => item !== code)].slice(0, RECENT_COUNTRIES_LIMIT);
+    saveJson(RECENT_COUNTRIES_KEY, recentCountries);
+  }
+  setSelectedCountry(code);
+  closeCountryPicker();
+  if (changed) startNewSearch();
+}
+
+// Urutan hasil: nama yang diawali teks ketikan, lalu kata di dalam nama yang diawali teks itu,
+// lalu sisanya yang memuat teks itu. Kode negara dua huruf yang sama persis ikut di urutan pertama.
+// Tanpa ketikan, daftar disusun seperti pemilih negara pada umumnya: "Semua negara" (menempel
+// di atas), grup Disarankan, lalu daftar negara A-Z. Negara di grup Disarankan muncul dua kali.
+function matchCountries(query) {
+  const term = normalizeSearchText(query);
+  const all = { code: ALL_COUNTRIES, name: "Semua negara", key: "semua negara all" };
+  if (!term) {
+    const suggestedCodes = [...new Set([selectedCountry, detectedCountry, ...recentCountries])];
+    const suggested = suggestedCodes
+      .filter(code => code !== ALL_COUNTRIES)
+      .map(code => countryOptions.find(option => option.code === code))
+      .filter(Boolean)
+      .map(option => ({ ...option, group: "suggested" }));
+    return [all, ...suggested, ...countryOptions.map(option => ({ ...option, group: "az" }))];
+  }
+
+  const ranked = [];
+  for (const option of [all, ...countryOptions]) {
+    const index = option.key.indexOf(term);
+    if (index === -1) continue;
+    let rank = 2;
+    if (index === 0 || option.code.toLowerCase() === term) rank = 0;
+    else if (/[\s\-(']/.test(option.key[index - 1])) rank = 1;
+    ranked.push({ option, rank });
+  }
+  // sort() stabil, jadi urutan abjad dari countryOptions tetap di dalam tiap peringkat.
+  return ranked.sort((a, b) => a.rank - b.rank).map(item => item.option);
+}
+
+function renderCountryList(query) {
+  countryMatches = matchCountries(query);
+  const term = normalizeSearchText(query);
+
+  const groupTitles = { suggested: "Disarankan", az: "Daftar negara A-Z" };
+  countryList.innerHTML = countryMatches
+    .map((option, index) => {
+      const selected = option.code === selectedCountry;
+      const icon = option.code === ALL_COUNTRIES ? COUNTRY_ICONS.globe : "";
+      const startsGroup = option.group && option.group !== countryMatches[index - 1]?.group;
+      const title = startsGroup
+        ? `<li class="country-group" role="presentation">${groupTitles[option.group]}</li>`
+        : "";
+      return `${title}<li id="country-option-${index}" class="country-option${option.code === ALL_COUNTRIES ? " is-all" : ""}"
+        role="option" aria-selected="${selected}" data-code="${escapeHtml(option.code)}">
+        ${icon}<span class="country-option-name">${highlightMatch(option.name, term)}</span>${selected ? COUNTRY_ICONS.check : ""}
+      </li>`;
+    })
+    .join("");
+
+  countryEmpty.hidden = countryMatches.length > 0;
+  // Daftar selalu dibuka dari atas. Tanpa ketikan, sorotan ada di pilihan sekarang, yang pertama
+  // kali muncul di dekat atas (di grup Disarankan). Dengan ketikan, di hasil teratas.
+  countryList.scrollTop = 0;
+  const selectedIndex = countryMatches.findIndex(option => option.code === selectedCountry);
+  setCountryActive(term ? 0 : Math.max(selectedIndex, 0));
+}
+
+// Tandai bagian nama yang cocok dengan ketikan. Pencocokan memakai teks tanpa diakritik,
+// jadi posisi dicari di nama yang dinormalisasi per karakter.
+function highlightMatch(name, term) {
+  if (!term) return escapeHtml(name);
+  const chars = Array.from(name);
+  const plain = chars.map(char => normalizeSearchText(char) || char).join("");
+  const index = plain.indexOf(term);
+  if (index === -1 || plain.length !== chars.length) return escapeHtml(name);
+  return escapeHtml(chars.slice(0, index).join(""))
+    + `<mark>${escapeHtml(chars.slice(index, index + term.length).join(""))}</mark>`
+    + escapeHtml(chars.slice(index + term.length).join(""));
+}
+
+function setCountryActive(index, { block = "nearest" } = {}) {
+  const previous = countryList.querySelector(".is-active");
+  if (previous) previous.classList.remove("is-active");
+  countryActiveIndex = countryMatches.length ? Math.min(Math.max(index, 0), countryMatches.length - 1) : -1;
+  if (countryActiveIndex === -1) {
+    countryFilter.removeAttribute("aria-activedescendant");
+    return;
+  }
+  const option = document.getElementById(`country-option-${countryActiveIndex}`);
+  option.classList.add("is-active");
+  countryFilter.setAttribute("aria-activedescendant", option.id);
+  option.scrollIntoView({ block });
+}
+
+function handleCountryFilterKey(event) {
+  const pageStep = 8;
+  const last = countryMatches.length - 1;
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    setCountryActive(countryActiveIndex >= last ? 0 : countryActiveIndex + 1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    setCountryActive(countryActiveIndex <= 0 ? last : countryActiveIndex - 1);
+  } else if (event.key === "PageDown") {
+    event.preventDefault();
+    setCountryActive(countryActiveIndex + pageStep);
+  } else if (event.key === "PageUp") {
+    event.preventDefault();
+    setCountryActive(countryActiveIndex - pageStep);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    if (countryActiveIndex !== -1) chooseCountry(countryMatches[countryActiveIndex].code);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    // Esc pertama menghapus ketikan, Esc kedua menutup pemilih.
+    if (countryFilter.value) {
+      countryFilter.value = "";
+      renderCountryList("");
+    } else {
+      closeCountryPicker();
+    }
+  }
+}
+
+// Panah bawah membuka pemilih. Huruf yang diketik saat tombol difokus langsung jadi ketikan
+// pencarian, sama seperti select bawaan yang melompat ke huruf awal.
+function handleCountryButtonKey(event) {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    openCountryPicker();
+  } else if (
+    event.key.length === 1 && event.key !== " " && event.key !== "/"
+    && !event.metaKey && !event.ctrlKey && !event.altKey
+  ) {
+    event.preventDefault();
+    openCountryPicker(event.key);
+  }
 }
 
 // ---------- Daftar radio: favorit + hasil pencarian ----------
@@ -502,7 +723,7 @@ function setActiveTag(tag) {
 }
 
 async function loadStations({ append = false } = {}) {
-  const countryCode = countrySelect.value || DEFAULT_COUNTRY;
+  const countryCode = selectedCountry;
   const searchTerm = searchInput.value.trim();
   const order = sortSelect.value;
 
@@ -524,7 +745,6 @@ async function loadStations({ append = false } = {}) {
   }
 
   const params = new URLSearchParams({
-    countrycode: countryCode,
     name: searchTerm,
     hidebroken: "true",
     limit: String(PAGE_SIZE),
@@ -532,6 +752,7 @@ async function loadStations({ append = false } = {}) {
     order: order,
     reverse: order === "name" ? "false" : "true"
   });
+  if (countryCode !== ALL_COUNTRIES) params.set("countrycode", countryCode);
   if (activeTag) params.set("tag", activeTag);
   if (SECURE_PAGE) params.set("is_https", "true");
 
@@ -640,12 +861,21 @@ function renderStations() {
     if (searchTerm) filters.push(`bernama <strong>${escapeHtml(searchTerm)}</strong>`);
     if (activeTag) filters.push(`bergenre <strong>${escapeHtml(activeTag)}</strong>`);
 
+    const inCountry = selectedCountry === ALL_COUNTRIES ? "" : ` di ${escapeHtml(selectedCountryName())}`;
+
     if (filters.length) {
+      // Pencarian di satu negara kosong: tawarkan mencari nama yang sama di semua negara.
+      const allCountriesButton = selectedCountry === ALL_COUNTRIES
+        ? ""
+        : `<button class="btn btn-inline" type="button" data-action="search-all-countries">Cari di semua negara</button>`;
       stationList.innerHTML = `
         <div class="empty">
-          Tidak ada radio ${filters.join(" dan ")} di ${escapeHtml(selectedCountryName())}.
+          Tidak ada radio ${filters.join(" dan ")}${inCountry}.
           <br />
-          <button class="btn btn-inline" type="button" data-action="clear-filters">Hapus pencarian</button>
+          <span class="empty-actions">
+            ${allCountriesButton}
+            <button class="btn btn-inline${allCountriesButton ? " btn-quiet" : ""}" type="button" data-action="clear-filters">Hapus pencarian</button>
+          </span>
         </div>
       `;
     } else {
@@ -924,6 +1154,11 @@ function handleCardAction(event) {
     // Tombol tag ikut hilang saat daftar dimuat ulang: fokus ke tombol hapus filter.
     clearTagButton.focus();
   } else if (action === "retry-list") startNewSearch();
+  else if (action === "search-all-countries") {
+    setSelectedCountry(ALL_COUNTRIES);
+    startNewSearch();
+    countryButton.focus();
+  }
   else if (action === "clear-filters") {
     searchInput.value = "";
     if (activeTag) setActiveTag("");

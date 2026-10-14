@@ -83,9 +83,40 @@
         </div>
 
         <div class="controls-filters">
-          <select id="countrySelect" aria-label="Negara">
-            <option value="ID" selected>Indonesia</option>
-          </select>
+          <button
+            id="countryButton"
+            class="country-button"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="countryPopover"
+          >
+            <span class="visually-hidden">Negara: </span>
+            <span id="countryButtonText" class="country-button-text">Indonesia</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <div id="countryPopover" class="country-popover" role="dialog" aria-label="Pilih negara" hidden>
+            <div class="country-filter">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+              <input
+                id="countryFilter"
+                type="text"
+                role="combobox"
+                placeholder="Ketik nama negara..."
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                enterkeyhint="go"
+                aria-label="Cari negara"
+                aria-autocomplete="list"
+                aria-expanded="true"
+                aria-controls="countryList"
+              />
+            </div>
+            <ul id="countryList" class="country-list" role="listbox" aria-label="Negara"></ul>
+            <p id="countryEmpty" class="country-empty" hidden>Negara tidak ditemukan.</p>
+          </div>
 
           <select id="sortSelect" aria-label="Urutkan">
             <option value="clickcount" selected>Terpopuler</option>
