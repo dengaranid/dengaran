@@ -135,8 +135,15 @@ const ICONS = {
 // Ikon Lucide "globe" dan "check" untuk pemilih negara.
 const COUNTRY_ICONS = {
   globe: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
-  check: '<svg class="icon country-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
+  check: '<svg class="icon picker-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
 };
+
+const SORT_OPTIONS = [
+  { order: "clickcount", label: "Terpopuler" },
+  { order: "votes", label: "Paling disukai" },
+  { order: "name", label: "Nama A-Z" },
+  { order: "bitrate", label: "Bitrate tertinggi" }
+];
 
 const NOW_DOT_HTML = '<span class="now-dot" aria-hidden="true"></span>';
 
@@ -165,7 +172,10 @@ const countryPopover = document.getElementById("countryPopover");
 const countryFilter = document.getElementById("countryFilter");
 const countryList = document.getElementById("countryList");
 const countryEmpty = document.getElementById("countryEmpty");
-const sortSelect = document.getElementById("sortSelect");
+const sortButton = document.getElementById("sortButton");
+const sortButtonText = document.getElementById("sortButtonText");
+const sortPopover = document.getElementById("sortPopover");
+const sortList = document.getElementById("sortList");
 const activeFilter = document.getElementById("activeFilter");
 const activeTagLabel = document.getElementById("activeTagLabel");
 const clearTagButton = document.getElementById("clearTagButton");
@@ -231,6 +241,9 @@ let bufferingStartTime = 0;
 let activeTag = "";
 // Kode negara yang dipakai pencarian. ALL_COUNTRIES berarti tanpa filter negara.
 let selectedCountry = DEFAULT_COUNTRY;
+// Nilai order untuk /stations/search, dipilih lewat pemilih urutan.
+let sortOrder = "clickcount";
+let sortActiveIndex = 0;
 // Negara hasil tebakan browser, ditampilkan di grup Disarankan.
 let detectedCountry = DEFAULT_COUNTRY;
 let recentCountries = loadJson(RECENT_COUNTRIES_KEY, []);
@@ -339,7 +352,29 @@ countryPopover.addEventListener("focusout", event => {
     closeCountryPicker({ focusButton: false });
   }
 });
-sortSelect.addEventListener("change", () => startNewSearch());
+sortButton.addEventListener("click", () => {
+  if (sortPopover.hidden) openSortPicker();
+  else closeSortPicker({ focusButton: false });
+});
+sortButton.addEventListener("keydown", event => {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    openSortPicker();
+  }
+});
+sortList.addEventListener("keydown", handleSortListKey);
+sortList.addEventListener("click", event => {
+  const option = event.target.closest('[role="option"]');
+  if (option) chooseSort(option.dataset.order);
+});
+document.addEventListener("pointerdown", event => {
+  if (sortPopover.hidden) return;
+  if (sortPopover.contains(event.target) || sortButton.contains(event.target)) return;
+  closeSortPicker({ focusButton: false });
+});
+sortList.addEventListener("blur", event => {
+  if (event.relatedTarget !== sortButton) closeSortPicker({ focusButton: false });
+});
 loadMoreButton.addEventListener("click", () => loadStations({ append: true }));
 clearTagButton.addEventListener("click", () => {
   setActiveTag("");
@@ -546,6 +581,7 @@ function normalizeSearchText(text) {
 // ---------- Pemilih negara ----------
 
 function openCountryPicker(initialText = "") {
+  closeSortPicker({ focusButton: false });
   countryPopover.hidden = false;
   countryButton.setAttribute("aria-expanded", "true");
   countryFilter.value = initialText;
@@ -613,11 +649,11 @@ function renderCountryList(query) {
       const icon = option.code === ALL_COUNTRIES ? COUNTRY_ICONS.globe : "";
       const startsGroup = option.group && option.group !== countryMatches[index - 1]?.group;
       const title = startsGroup
-        ? `<li class="country-group" role="presentation">${groupTitles[option.group]}</li>`
+        ? `<li class="picker-group" role="presentation">${groupTitles[option.group]}</li>`
         : "";
-      return `${title}<li id="country-option-${index}" class="country-option${option.code === ALL_COUNTRIES ? " is-all" : ""}"
+      return `${title}<li id="country-option-${index}" class="picker-option${option.code === ALL_COUNTRIES ? " is-all" : ""}"
         role="option" aria-selected="${selected}" data-code="${escapeHtml(option.code)}">
-        ${icon}<span class="country-option-name">${highlightMatch(option.name, term)}</span>${selected ? COUNTRY_ICONS.check : ""}
+        ${icon}<span class="picker-option-name">${highlightMatch(option.name, term)}</span>${selected ? COUNTRY_ICONS.check : ""}
       </li>`;
     })
     .join("");
@@ -702,6 +738,76 @@ function handleCountryButtonKey(event) {
   }
 }
 
+// ---------- Pemilih urutan ----------
+
+// Daftar pendek tanpa kolom ketik: fokus pindah ke listbox, dan opsi disorot lewat
+// aria-activedescendant seperti di pemilih negara.
+function openSortPicker() {
+  closeCountryPicker({ focusButton: false });
+  sortPopover.hidden = false;
+  sortButton.setAttribute("aria-expanded", "true");
+  sortList.innerHTML = SORT_OPTIONS
+    .map((option, index) => {
+      const selected = option.order === sortOrder;
+      return `<li id="sort-option-${index}" class="picker-option" role="option" aria-selected="${selected}"
+        data-order="${option.order}"><span class="picker-option-name">${option.label}</span>${selected ? COUNTRY_ICONS.check : ""}</li>`;
+    })
+    .join("");
+  setSortActive(Math.max(SORT_OPTIONS.findIndex(option => option.order === sortOrder), 0));
+  sortList.focus();
+}
+
+function closeSortPicker({ focusButton = true } = {}) {
+  if (sortPopover.hidden) return;
+  sortPopover.hidden = true;
+  sortButton.setAttribute("aria-expanded", "false");
+  if (focusButton) sortButton.focus();
+}
+
+function chooseSort(order) {
+  const changed = order !== sortOrder;
+  sortOrder = order;
+  sortButtonText.textContent = SORT_OPTIONS.find(option => option.order === order).label;
+  closeSortPicker();
+  if (changed) startNewSearch();
+}
+
+function setSortActive(index) {
+  const previous = sortList.querySelector(".is-active");
+  if (previous) previous.classList.remove("is-active");
+  sortActiveIndex = (index + SORT_OPTIONS.length) % SORT_OPTIONS.length;
+  const option = document.getElementById(`sort-option-${sortActiveIndex}`);
+  option.classList.add("is-active");
+  sortList.setAttribute("aria-activedescendant", option.id);
+}
+
+function handleSortListKey(event) {
+  if (event.key === "ArrowDown") setSortActive(sortActiveIndex + 1);
+  else if (event.key === "ArrowUp") setSortActive(sortActiveIndex - 1);
+  else if (event.key === "Home") setSortActive(0);
+  else if (event.key === "End") setSortActive(SORT_OPTIONS.length - 1);
+  else if (event.key === "Enter" || event.key === " ") chooseSort(SORT_OPTIONS[sortActiveIndex].order);
+  else if (event.key === "Escape") closeSortPicker();
+  else if (event.key === "Tab") {
+    closeSortPicker({ focusButton: false });
+    return;
+  } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    // Huruf awal melompat ke opsi yang diawali huruf itu, seperti select bawaan.
+    const letter = event.key.toLowerCase();
+    const count = SORT_OPTIONS.length;
+    for (let step = 1; step <= count; step++) {
+      const index = (sortActiveIndex + step) % count;
+      if (SORT_OPTIONS[index].label.toLowerCase().startsWith(letter)) {
+        setSortActive(index);
+        break;
+      }
+    }
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
 // ---------- Daftar radio: favorit + hasil pencarian ----------
 
 // Tombol X hanya tampil saat kolom pencarian berisi teks.
@@ -725,7 +831,7 @@ function setActiveTag(tag) {
 async function loadStations({ append = false } = {}) {
   const countryCode = selectedCountry;
   const searchTerm = searchInput.value.trim();
-  const order = sortSelect.value;
+  const order = sortOrder;
 
   // Batalkan request sebelumnya agar hasil tidak saling tumpang tindih.
   if (searchAbortController) searchAbortController.abort();

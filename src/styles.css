@@ -539,24 +539,6 @@ kbd {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Panah bawaan select diganti Lucide "chevron-down". Selector lebih spesifik
-   supaya padding kanan tidak tertimpa aturan input di bawah. */
-.controls .controls-filters select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8a299' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px 16px;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.controls select option {
-  background: var(--panel-soft);
-}
-
 .controls-filters {
   position: relative;
   display: grid;
@@ -565,9 +547,9 @@ kbd {
   padding: 12px 16px;
 }
 
-/* Pemilih negara: tombol setinggi select di sebelahnya, membuka panel dengan kolom ketik
-   dan daftar negara yang tersaring saat diketik. */
-.country-button {
+/* Pemilih negara dan urutan: tombol yang membuka panel daftar. Panel negara punya kolom ketik
+   untuk menyaring daftar; panel urutan hanya berisi daftar. */
+.picker-button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -581,7 +563,7 @@ kbd {
   text-align: left;
 }
 
-.country-button-text {
+.picker-button-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -589,23 +571,23 @@ kbd {
   white-space: nowrap;
 }
 
-.country-button .icon {
+.picker-button .icon {
   width: 16px;
   height: 16px;
   color: var(--muted);
   transition: rotate 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.country-button[aria-expanded="true"] {
+.picker-button[aria-expanded="true"] {
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 
-.country-button[aria-expanded="true"] .icon {
+.picker-button[aria-expanded="true"] .icon {
   rotate: 180deg;
 }
 
 /* Panel selebar dua kolom filter, jadi nama negara panjang tetap muat. */
-.country-popover {
+.picker-popover {
   position: absolute;
   top: calc(100% - 6px);
   left: 16px;
@@ -617,23 +599,23 @@ kbd {
   border: 1px solid var(--border);
   background: var(--panel);
   box-shadow: var(--shadow);
-  animation: country-popover-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: picker-popover-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes country-popover-in {
+@keyframes picker-popover-in {
   from {
     opacity: 0;
     translate: 0 -6px;
   }
 }
 
-.country-filter {
+.picker-filter {
   position: relative;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
 }
 
-.country-filter .icon {
+.picker-filter .icon {
   position: absolute;
   top: 50%;
   left: 12px;
@@ -644,17 +626,18 @@ kbd {
   pointer-events: none;
 }
 
-.controls .country-filter input {
+.controls .picker-filter input {
   padding-left: 38px;
   background-color: transparent;
 }
 
-.controls .country-filter input:focus-visible {
+.controls .picker-filter input:focus-visible {
   outline: none;
 }
 
-.country-list {
+.picker-list {
   flex: 1;
+  outline: none;
   min-height: 0;
   margin: 0;
   padding: 0 0 4px;
@@ -663,7 +646,7 @@ kbd {
   list-style: none;
 }
 
-.country-option {
+.picker-option {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -674,7 +657,7 @@ kbd {
   scroll-margin: 44px 0 4px;
 }
 
-.country-option-name {
+.picker-option-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -682,7 +665,7 @@ kbd {
   white-space: nowrap;
 }
 
-.country-option mark {
+.picker-option mark {
   color: var(--text);
   background: transparent;
   font-weight: 600;
@@ -692,7 +675,7 @@ kbd {
 }
 
 /* "Semua negara" menempel di atas daftar, jadi tetap terlihat saat daftar di-scroll. */
-.country-option.is-all {
+.picker-option.is-all {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -701,47 +684,46 @@ kbd {
   background: var(--panel);
 }
 
-.country-group {
+.picker-group {
   padding: 12px 12px 4px;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.country-option .icon {
+.picker-option .icon {
   width: 16px;
   height: 16px;
   color: var(--muted);
 }
 
-.country-option .country-check {
+.picker-option .picker-check {
   color: var(--success-soft);
 }
 
-.country-option[aria-selected="true"] {
+.picker-option[aria-selected="true"] {
   color: var(--text);
   font-weight: 600;
 }
 
-.country-option.is-active {
+.picker-option.is-active {
   background: var(--active-row);
   color: var(--text);
 }
 
 @media (hover: hover) {
-  .country-option:hover {
+  .picker-option:hover {
     background: var(--active-row);
   }
 }
 
-.country-empty {
+.picker-empty {
   margin: 0;
   padding: 20px 12px;
   color: var(--muted);
   text-align: center;
 }
 
-.controls select,
 .controls input {
   width: 100%;
   min-height: 44px;
@@ -2131,7 +2113,7 @@ kbd {
     padding: 10px 12px;
   }
 
-  .country-popover {
+  .picker-popover {
     left: 12px;
     right: 12px;
     top: calc(100% - 4px);

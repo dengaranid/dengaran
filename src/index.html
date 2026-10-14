@@ -85,19 +85,19 @@
         <div class="controls-filters">
           <button
             id="countryButton"
-            class="country-button"
+            class="picker-button"
             type="button"
             aria-haspopup="dialog"
             aria-expanded="false"
             aria-controls="countryPopover"
           >
             <span class="visually-hidden">Negara: </span>
-            <span id="countryButtonText" class="country-button-text">Indonesia</span>
+            <span id="countryButtonText" class="picker-button-text">Indonesia</span>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
 
-          <div id="countryPopover" class="country-popover" role="dialog" aria-label="Pilih negara" hidden>
-            <div class="country-filter">
+          <div id="countryPopover" class="picker-popover" role="dialog" aria-label="Pilih negara" hidden>
+            <div class="picker-filter">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
               <input
                 id="countryFilter"
@@ -114,16 +114,26 @@
                 aria-controls="countryList"
               />
             </div>
-            <ul id="countryList" class="country-list" role="listbox" aria-label="Negara"></ul>
-            <p id="countryEmpty" class="country-empty" hidden>Negara tidak ditemukan.</p>
+            <ul id="countryList" class="picker-list" role="listbox" aria-label="Negara"></ul>
+            <p id="countryEmpty" class="picker-empty" hidden>Negara tidak ditemukan.</p>
           </div>
 
-          <select id="sortSelect" aria-label="Urutkan">
-            <option value="clickcount" selected>Terpopuler</option>
-            <option value="votes">Paling disukai</option>
-            <option value="name">Nama A-Z</option>
-            <option value="bitrate">Bitrate tertinggi</option>
-          </select>
+          <button
+            id="sortButton"
+            class="picker-button"
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-controls="sortPopover"
+          >
+            <span class="visually-hidden">Urutkan: </span>
+            <span id="sortButtonText" class="picker-button-text">Terpopuler</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <div id="sortPopover" class="picker-popover" hidden>
+            <ul id="sortList" class="picker-list" role="listbox" aria-label="Urutkan" tabindex="-1"></ul>
+          </div>
         </div>
 
         <div id="activeFilter" class="active-filter" hidden>
