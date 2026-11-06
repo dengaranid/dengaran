@@ -29,7 +29,7 @@ import shutil
 import sys
 import subprocess
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -41,6 +41,8 @@ OUTPUT_DIR = ROOT / "public"
 # Alamat produksi, tanpa garis miring di akhir. dengaran.pages.dev di-redirect 301 ke alamat ini
 # lewat Bulk Redirects di akun Cloudflare.
 SITE_URL = "https://dengaran.id"
+SECURITY_CONTACT = "dengaranid@gmail.com"
+SECURITY_TXT_VALID_DAYS = 180
 
 SEO_MARKER = "<!-- seo:absolute-urls (canonical, og:url, og:image, JSON-LD) diisi scripts/build_public.py -->"
 LANDING_LINKS_MARKER = "<!-- seo:landing-links diisi scripts/build_public.py -->"
@@ -861,11 +863,23 @@ def main():
         encoding="utf-8",
     )
 
+    # Expires wajib ada di RFC 9116. Build mingguan terus memajukannya.
+    expires = built_on + timedelta(days=SECURITY_TXT_VALID_DAYS)
+    (OUTPUT_DIR / ".well-known").mkdir()
+    (OUTPUT_DIR / ".well-known" / "security.txt").write_text(
+        f"Contact: mailto:{SECURITY_CONTACT}\n"
+        f"Expires: {expires.isoformat()}T00:00:00Z\n"
+        "Preferred-Languages: id, en\n"
+        f"Canonical: {SITE_URL}/.well-known/security.txt\n",
+        encoding="utf-8",
+    )
+
     headers = "\n".join(
         [
             "/*",
             "  Content-Security-Policy: " + build_csp(),
             "  Strict-Transport-Security: max-age=86400; includeSubDomains",
+            "  Cross-Origin-Opener-Policy: same-origin",
             "  X-Content-Type-Options: nosniff",
             "  X-Frame-Options: DENY",
             "  Referrer-Policy: strict-origin-when-cross-origin",
@@ -900,7 +914,7 @@ def main():
     else:
         print(f"  {paint('public/' + js_name, '36')}  {js_size} byte  "
               + paint("tanpa minify, bun tidak ada di PATH", "33"))
-    print(f"  {paint('public/', '36')}index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, third-party-notices.txt")
+    print(f"  {paint('public/', '36')}index.html, 404.html, _headers, aset, robots.txt, sitemap.xml, .well-known/security.txt, third-party-notices.txt")
     print(f"  {paint('public/<slug>.html', '36')}  {len(landing_pages)} halaman daftar radio: "
           + ", ".join(f"{page['slug']} ({page['total']})" for page in landing_pages))
     if CF_ANALYTICS_TOKEN:
