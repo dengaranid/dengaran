@@ -18,7 +18,7 @@ const SITE_INFO = {
   email: "dengaranid@gmail.com",
   supportPlatform: "Saweria",
   supportUrl: "https://saweria.co/dengaranid",
-  legalUpdated: "13 Oktober 2026"
+  legalUpdated: "6 November 2026"
 };
 
 // Stasiun dan tag yang disembunyikan, dibaca juga oleh scripts/build_public.py untuk halaman
