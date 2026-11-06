@@ -858,6 +858,7 @@ def main():
         [
             "/*",
             "  Content-Security-Policy: " + build_csp(),
+            "  Strict-Transport-Security: max-age=86400; includeSubDomains",
             "  X-Content-Type-Options: nosniff",
             "  X-Frame-Options: DENY",
             "  Referrer-Policy: strict-origin-when-cross-origin",
