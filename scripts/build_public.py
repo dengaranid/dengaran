@@ -339,6 +339,13 @@ def load_blocklist():
     return ids, blocked_tags
 
 
+def name_has_link_or_markup(name):
+    """Nama stasiun ditulis pihak ketiga dan tampil di halaman yang diindeks mesin pencari. Nama
+    yang memuat alamat situs atau markup bukan nama stasiun yang layak ditampilkan di sana."""
+    lowered = name.lower()
+    return any(text in lowered for text in ("http", "www.", "<", ">"))
+
+
 def station_tags(station):
     return [tag.strip().lower() for tag in (station.get("tags") or "").split(",") if tag.strip()]
 
@@ -394,7 +401,7 @@ def fetch_landing_stations(blocked_ids, blocked_tags):
         uuid = (station.get("stationuuid") or "").lower()
         name = (station.get("name") or "").strip()
         # Tanpa uuid link ke pemutar tidak bisa dibuat; tanpa nama baris tidak bisa dibaca.
-        if not uuid or not name or uuid in blocked_ids:
+        if not uuid or not name or uuid in blocked_ids or name_has_link_or_markup(name):
             continue
         if blocked_tags.intersection(station_tags(station)):
             continue

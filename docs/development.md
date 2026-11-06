@@ -43,7 +43,7 @@ Output script berwarna di terminal. Isi `NO_COLOR=1` untuk menonaktifkannya.
 
 Build butuh koneksi internet untuk mengambil daftar stasiun. Kalau semua server Radio Browser gagal dijawab, build berhenti dengan pesan error dan deploy sebelumnya tetap dipakai.
 
-Nama stasiun adalah data pihak ketiga. Build juga berhenti kalau satu halaman daftar radio memuat `meta http-equiv` atau jumlah tag script yang tidak diharapkan. JSON di dalam tag script ditulis lewat `json_for_script`, bukan `json.dumps` langsung.
+Nama stasiun adalah data pihak ketiga. Stasiun yang namanya memuat `http`, `www.`, `<`, atau `>` tidak masuk halaman daftar radio. Build juga berhenti kalau satu halaman daftar radio memuat `meta http-equiv` atau jumlah tag script yang tidak diharapkan. JSON di dalam tag script ditulis lewat `json_for_script`, bukan `json.dumps` langsung.
 
 ## Halaman daftar radio
 
