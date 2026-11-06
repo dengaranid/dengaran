@@ -30,6 +30,7 @@ import sys
 import subprocess
 import urllib.request
 from datetime import date
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -249,7 +250,7 @@ def seo_tags(html):
             f'  <meta property="og:image:alt" content="{title}" />',
             f'  <meta name="twitter:image" content="{image_url}" />',
             '  <script type="application/ld+json">'
-            + json.dumps(json_ld, ensure_ascii=False)
+            + json_for_script(json_ld)
             + "</script>",
         ]
     )
@@ -641,7 +642,7 @@ def landing_page_html(page, pages, css_name, built_on, head):
   <meta property="og:description" content="{html_lib.escape(description)}" />
   <meta property="og:url" content="{page_url}" />
   <meta property="og:image" content="{SITE_URL}/og-image.png" />
-  <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
+  <script type="application/ld+json">{json_for_script(json_ld)}</script>
   <link rel="stylesheet" href="/{css_name}" />{analytics}
 </head>
 <body class="landing-body">
@@ -685,6 +686,40 @@ def landing_links_section(pages):
     return f"""<div class="dialog-section">
 {landing_nav_html(pages)}
         </div>"""
+
+
+def json_for_script(value):
+    """JSON untuk ditulis di dalam tag <script>. Tanpa < di keluaran, teks dari data tidak bisa
+    menutup tag itu."""
+    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c")
+
+
+class LandingPageMarkup(HTMLParser):
+    """Hitung tag dari hasil parsing, bukan dari teks: nama stasiun di dalam nilai atribut tidak
+    boleh terbaca sebagai tag."""
+
+    def __init__(self):
+        super().__init__()
+        self.scripts = 0
+        self.has_http_equiv = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            self.scripts += 1
+        elif tag == "meta" and any(name == "http-equiv" for name, _ in attrs):
+            self.has_http_equiv = True
+
+
+def check_landing_page(slug, page_html):
+    """Hentikan build kalau halaman daftar radio memuat tag yang tidak ditulis template, supaya
+    deploy sebelumnya tetap dipakai."""
+    markup = LandingPageMarkup()
+    markup.feed(page_html)
+    expected_scripts = 2 if CF_ANALYTICS_TOKEN else 1
+    if markup.scripts != expected_scripts:
+        fail(f"{slug}: {markup.scripts} tag script, seharusnya {expected_scripts}.")
+    if markup.has_http_equiv:
+        fail(f"{slug}: memuat meta http-equiv.")
 
 
 def analytics_tag():
@@ -787,9 +822,9 @@ def main():
     (OUTPUT_DIR / css_name).write_text(css, encoding="utf-8")
     # <slug>.html dilayani Cloudflare Pages di /<slug>, tanpa ekstensi.
     for page in landing_pages:
-        (OUTPUT_DIR / f"{page['slug']}.html").write_text(
-            landing_page_html(page, landing_pages, css_name, built_on, head), encoding="utf-8"
-        )
+        page_html = landing_page_html(page, landing_pages, css_name, built_on, head)
+        check_landing_page(page["slug"], page_html)
+        (OUTPUT_DIR / f"{page['slug']}.html").write_text(page_html, encoding="utf-8")
     (OUTPUT_DIR / js_name).write_text(js, encoding="utf-8")
     if not js_minified:
         shutil.copyfile(SRC_DIR / BLOCKLIST_FILE, OUTPUT_DIR / BLOCKLIST_FILE)
