@@ -212,7 +212,7 @@ Didaftarkan di bagian inisialisasi `src/app.js`. Handler `playing`, `pause`, `er
 | `streamUpgraded` (stream HTTP sudah dicoba sebagai HTTPS) | Stasiun memakai stream HTTP, dan versi HTTPS-nya sudah dicoba dan tidak bisa diputar. | tampil |
 | selain itu | Stasiun mungkin sedang offline. | tampil |
 
-Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Selain tombol di mini player, jika kesalahan bukan format yang tidak didukung (`UnsupportedCodec`), `showToast` juga memunculkan toast notifikasi berisi aksi tombol "Coba lagi" yang langsung mencoba memutar stasiun kembali. Aksi toast hanya dijalankan kalau stasiun yang gagal masih ada di player, karena pengguna bisa sudah memilih stasiun lain sebelum toast hilang.
+Pesan AAC dimulai dengan faktanya, bukan nama stasiun, karena di HP status terpotong satu baris dan nama stasiun sudah tampil di atasnya. Tombol Coba lagi ada di mini player. Untuk kegagalan selain `NotAllowedError`, termasuk `UnsupportedCodec`, `showToast` juga memunculkan toast berisi pesan yang sama dan tombol "Radio berikutnya", yang memanggil `playAdjacent(1)`: radio berikutnya di daftar yang sedang dibuka, dengan stasiun yang sudah ada di `failedStations` dilewati. Kalau semua stasiun di daftar sudah gagal, urutan biasa dipakai. Aksi toast hanya dijalankan kalau stasiun yang gagal masih ada di player, karena pengguna bisa sudah memilih stasiun lain sebelum toast hilang.
 
 ## Stop dan tutup player
 

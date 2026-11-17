@@ -148,8 +148,23 @@ const SORT_OPTIONS = [
   { order: "clickcount", label: "Terpopuler" },
   { order: "votes", label: "Paling disukai" },
   { order: "name", label: "Nama A-Z" },
-  { order: "bitrate", label: "Bitrate tertinggi" }
+  { order: "bitrate", label: "Kualitas tertinggi" }
 ];
+
+// Chip genre di atas daftar radio. Tag Radio Browser ditulis bebas oleh pengirim data, jadi
+// daftar untuk Indonesia memakai tag yang paling banyak dipakai stasiun HTTPS Indonesia
+// (dihitung dari API pada 2026-11-17). Negara lain memakai tag umum. Label berbahasa Indonesia,
+// nilai tag dikirim ke API apa adanya.
+const GENRE_SHORTCUTS = {
+  ID: [
+    ["Pop", "pop"], ["Rock", "rock"], ["Hits", "hits"], ["Berita", "news"], ["Dangdut", "dangdut"],
+    ["Jazz", "jazz"], ["Top 40", "top 40"], ["Campursari", "campursari"], ["Koplo", "koplo"]
+  ],
+  default: [
+    ["Pop", "pop"], ["Rock", "rock"], ["Berita", "news"], ["Jazz", "jazz"], ["Klasik", "classical"],
+    ["Dance", "dance"]
+  ]
+};
 
 const NOW_DOT_HTML = '<span class="now-dot" aria-hidden="true"></span>';
 
@@ -197,6 +212,7 @@ const favoriteList = document.getElementById("favoriteList");
 const favoriteCount = document.getElementById("favoriteCount");
 const stationList = document.getElementById("stationList");
 const stationCount = document.getElementById("stationCount");
+const genreBar = document.getElementById("genreBar");
 const historySection = document.getElementById("historySection");
 const appShell = document.querySelector(".app");
 const heroHeader = document.querySelector(".hero");
@@ -233,6 +249,7 @@ const toastIcon = document.getElementById("toastIcon");
 const toastAction = document.getElementById("toastAction");
 
 const regionNames = createRegionNames();
+const languageNames = createLanguageNames();
 
 let stations = [];
 let favorites = loadStationList(FAVORITE_KEY);
@@ -464,9 +481,13 @@ toast.addEventListener("mouseleave", resumeToast);
 toast.addEventListener("focusout", resumeToast);
 
 // Event delegation: satu listener untuk semua tombol kartu dan baris.
-[favoriteList, stationList, historyList, historyListDesktop].filter(Boolean).forEach(list => {
+[favoriteList, stationList, historyList, historyListDesktop, genreBar].filter(Boolean).forEach(list => {
   list.addEventListener("click", handleCardAction);
 });
+window.addEventListener("resize", debounce(() => {
+  trimHiddenTags(stationList);
+  trimHiddenTags(favoriteList);
+}, 150));
 
 
 document.addEventListener("keydown", handleShortcut);
@@ -488,6 +509,7 @@ async function init() {
   restoreLinkedStation();
   updatePlaybackUI();
   observeLayout();
+  watchCompactHero();
   observeLoadMore();
   selectInitialCountry();
   loadCountries();
@@ -683,7 +705,7 @@ function renderCountryList(query) {
   // Opsi bergrup dibungkus role="group" dengan judul sebagai label, karena listbox hanya boleh
   // berisi option dan group. Negara yang muncul dua kali hanya ditandai terpilih di kemunculan
   // pertama.
-  const groupTitles = { suggested: "Disarankan", az: "Daftar negara A-Z" };
+  const groupTitles = { suggested: "Negara Anda", az: "Daftar negara A-Z" };
   const selectedIndex = countryMatches.findIndex(option => option.code === selectedCountry);
   let html = "";
   countryMatches.forEach((option, index) => {
@@ -900,6 +922,7 @@ async function loadStations({ append = false } = {}) {
     // Favorit ikut disaring kata pencarian dan genre, jadi dirender ulang di sini.
     renderFavorites();
     radioScroll.scrollTop = 0;
+    renderGenreBar();
     stationList.innerHTML = `<div class="loading">Memuat daftar radio...</div>`;
     stationCount.textContent = "";
     loadMoreButton.hidden = true;
@@ -956,18 +979,31 @@ async function loadStations({ append = false } = {}) {
     return;
   }
 
-  const newStations = data
-    .filter(station => station.stationuuid && (station.url_resolved || station.url))
-    .map(normalizeStation)
-    .filter(station => !isBlockedStation(station));
+  let newStations = toStations(data);
 
   currentOffset += PAGE_SIZE;
   hasMore = data.length === PAGE_SIZE;
+
+  // Kotak cari mencari nama. Kalau hasil nama kurang dari satu halaman, kata yang sama juga
+  // dicari sebagai genre, supaya "jazz" atau "dangdut" menemukan stasiun yang tidak memakai
+  // kata itu di namanya. Hasil genre ditambahkan di bawah hasil nama, tanpa duplikat.
+  if (!append && searchTerm && !activeTag && !hasMore) {
+    params.delete("name");
+    params.set("tag", searchTerm.toLowerCase());
+    params.set("offset", "0");
+    const byTag = await apiFetch(`/stations/search?${params.toString()}`, { signal });
+    if (byTag === "aborted") return;
+    if (Array.isArray(byTag)) {
+      const known = new Set(newStations.map(station => station.id));
+      newStations = newStations.concat(toStations(byTag).filter(station => !known.has(station.id)));
+    }
+  }
 
   if (append) {
     // Sisipkan kartu baru saja. Kartu lama tidak diganti, jadi fokus keyboard tetap.
     stations = stations.concat(newStations);
     stationList.insertAdjacentHTML("beforeend", newStations.map(createStationCard).join(""));
+    trimHiddenTags(stationList);
     updateStationCount();
     loadMoreButton.hidden = !hasMore;
     announce(`${newStations.length} radio lagi dimuat.`);
@@ -978,6 +1014,13 @@ async function loadStations({ append = false } = {}) {
 
   // Observer tidak terpicu lagi kalau tombol masih di area yang sama setelah render.
   requestAnimationFrame(checkLoadMoreProximity);
+}
+
+function toStations(data) {
+  return data
+    .filter(station => station.stationuuid && (station.url_resolved || station.url))
+    .map(normalizeStation)
+    .filter(station => !isBlockedStation(station));
 }
 
 function normalizeStation(station) {
@@ -1016,7 +1059,50 @@ function updateStationCount() {
   // Selama daftar dimuat, count dibiarkan kosong sampai hasil baru dirender.
   if (stationList.querySelector(".loading")) return;
   const resultTotal = stationList.querySelectorAll(".card").length;
-  stationCount.textContent = String(resultTotal);
+  // Daftar dimuat per halaman. Selama masih ada halaman berikutnya, jumlah semua radio belum
+  // diketahui, jadi badge dikosongkan (CSS menyembunyikan badge kosong). Angka hanya tampil
+  // kalau seluruh hasil sudah dimuat, misalnya hasil pencarian atau filter genre.
+  stationCount.textContent = hasMore ? "" : String(resultTotal);
+}
+
+function renderGenreBar() {
+  const genres = GENRE_SHORTCUTS[selectedCountry] || GENRE_SHORTCUTS.default;
+  genreBar.hidden = Boolean(activeTag);
+  genreBar.innerHTML = `
+    <span class="genre-bar-label" aria-hidden="true">Genre</span>
+    <ul class="genre-list">${genres
+      .map(([label, tag]) => `<li><button class="genre-chip" type="button" data-action="filter-tag"
+        data-tag="${escapeHtml(tag)}" aria-label="Tampilkan genre ${escapeHtml(label)}">${escapeHtml(label)}</button></li>`)
+      .join("")}</ul>
+  `;
+}
+
+// Tag yang tidak muat di satu baris dipotong oleh overflow .card-sub .tags. Tag itu juga
+// disembunyikan dari keyboard dan pembaca layar, supaya fokus tidak jatuh ke tag yang tidak
+// terlihat. Semua tag ditampilkan dulu, baru diukur, supaya layout dihitung sekali.
+function trimHiddenTags(container) {
+  const lists = Array.from(container.querySelectorAll(".card-sub .tags"));
+  lists.forEach(list => {
+    list.hidden = false;
+    for (const item of list.children) item.hidden = false;
+  });
+  const hiddenItems = [];
+  const emptyLists = [];
+  lists.forEach(list => {
+    const box = list.getBoundingClientRect();
+    if (box.width === 0) return;
+    const items = Array.from(list.children);
+    let visible = 0;
+    items.forEach(item => {
+      const rect = item.getBoundingClientRect();
+      const clipped = rect.top >= box.bottom - 1 || rect.right > box.right + 1;
+      if (clipped) hiddenItems.push(item);
+      else visible += 1;
+    });
+    if (visible === 0) emptyLists.push(list);
+  });
+  hiddenItems.forEach(item => { item.hidden = true; });
+  emptyLists.forEach(list => { list.hidden = true; });
 }
 
 function renderStations() {
@@ -1025,7 +1111,10 @@ function renderStations() {
   if (results.length === 0) {
     const searchTerm = searchInput.value.trim();
     const filters = [];
-    if (searchTerm) filters.push(`bernama <strong>${escapeHtml(searchTerm)}</strong>`);
+    if (searchTerm) {
+      const kind = activeTag ? "bernama" : "dengan nama atau genre";
+      filters.push(`${kind} <strong>${escapeHtml(searchTerm)}</strong>`);
+    }
     if (activeTag) filters.push(`bergenre <strong>${escapeHtml(activeTag)}</strong>`);
 
     const inCountry = selectedCountry === ALL_COUNTRIES ? "" : ` di ${escapeHtml(selectedCountryName())}`;
@@ -1058,6 +1147,7 @@ function renderStations() {
   }
 
   stationList.innerHTML = results.map(createStationCard).join("");
+  trimHiddenTags(stationList);
   updateStationCount();
   announce(`${results.length} radio ditampilkan${activeTag ? ` untuk genre ${activeTag}` : ""}.`);
   loadMoreButton.hidden = !hasMore;
@@ -1079,11 +1169,16 @@ function setActiveTab(tab) {
   if (tab === "radio") {
     requestAnimationFrame(checkLoadMoreProximity);
   }
+  // Panel yang tersembunyi tidak punya ukuran, jadi tag baru bisa diukur setelah panelnya tampil.
+  if (tab === "radio") trimHiddenTags(stationList);
+  if (tab === "favorite") trimHiddenTags(favoriteList);
 }
 
 function renderFavorites() {
   const list = visibleFavorites();
-  favoriteCount.textContent = String(list.length);
+  // Angka 0 tidak ditampilkan: keadaan kosong di panelnya sudah menjelaskan. Badge kosong
+  // disembunyikan CSS (.count-badge:empty), sama dengan tab Radio.
+  favoriteCount.textContent = list.length ? String(list.length) : "";
 
   if (list.length === 0) {
     const term = searchInput.value.trim();
@@ -1096,10 +1191,12 @@ function renderFavorites() {
   }
 
   favoriteList.innerHTML = list.map(createStationCard).join("");
+  trimHiddenTags(favoriteList);
 }
 
 function renderHistory() {
-  const countStr = String(history.length);
+  // Angka 0 tidak ditampilkan, sama dengan badge Favorit.
+  const countStr = history.length ? String(history.length) : "";
   historyCount.textContent = countStr;
   if (historyTabCount) historyTabCount.textContent = countStr;
 
@@ -1131,14 +1228,19 @@ function insecureBadgeHtml(station) {
 }
 
 // HTML yang sudah di-escape. Codec dan bitrate dibungkus span supaya tampil monospace.
+// Negara tidak ditulis kalau sama dengan negara yang sedang dipilih, karena semua baris hasil
+// pencarian berasal dari negara itu. Bahasa yang namanya sama dengan negara stasiun ("Indonesia"
+// untuk stasiun Indonesia) juga tidak ditulis.
 function metaHtml(station, { withLanguage = true } = {}) {
-  const parts = [
-    escapeHtml(localizedCountry(station.countryCode, station.country) || "Negara tidak diketahui")
-  ];
+  const parts = [];
+  const country = localizedCountry(station.countryCode, station.country);
+  const sameCountry = selectedCountry !== ALL_COUNTRIES
+    && String(station.countryCode).toUpperCase() === selectedCountry;
+  if (!sameCountry) parts.push(escapeHtml(country || "Negara tidak diketahui"));
   const language = withLanguage ? formatLanguage(station.language) : "";
-  if (language) parts.push(escapeHtml(language));
+  if (language && language !== country) parts.push(escapeHtml(language));
   const quality = qualityText(station);
-  if (quality) parts.push(`<span class="meta-tech">${escapeHtml(quality)}</span>`);
+  if (quality) parts.push(`<span class="meta-tech" title="Format audio dan bitrate stream">${escapeHtml(quality)}</span>`);
   return parts.join(" • ");
 }
 
@@ -1188,10 +1290,10 @@ function createStationCard(station) {
   return `
     <article class="card ${stateClasses(state)}" data-station-id="${escapeHtml(station.id)}">
       <div class="card-main">
-        <h4 class="card-title" title="${escapeHtml(station.name)}">
+        <h3 class="card-title" title="${escapeHtml(station.name)}">
           ${NOW_DOT_HTML}
           <span class="card-name">${escapeHtml(station.name)}</span>
-        </h4>
+        </h3>
 
         <div class="card-sub">
           ${insecureBadgeHtml(station)}
@@ -1521,9 +1623,18 @@ function playAdjacent(step) {
   if (list.length === 0) return;
 
   const index = currentStation ? list.findIndex(station => station.id === currentStation.id) : -1;
-  const nextIndex = index === -1
+  let nextIndex = index === -1
     ? (step > 0 ? 0 : list.length - 1)
     : (index + step + list.length) % list.length;
+  // Stasiun yang sudah gagal di sesi ini dilewati, supaya "Radio berikutnya" sesudah stream
+  // gagal tidak berhenti di stasiun mati yang lain. Kalau semuanya gagal, urutan biasa dipakai.
+  for (let tries = 0; tries < list.length; tries++) {
+    const candidate = list[(nextIndex + step * tries + list.length * list.length) % list.length];
+    if (!failedStations.has(candidate.id) && (!currentStation || candidate.id !== currentStation.id)) {
+      nextIndex = list.indexOf(candidate);
+      break;
+    }
+  }
   const next = list[nextIndex];
 
   playStation(next);
@@ -1975,7 +2086,9 @@ function closePlayer() {
   retryButton.hidden = true;
   removeJson(LAST_STATION_KEY);
   setPlayerStation(null);
-  showStatus("Pilih radio lalu tekan Putar.");
+  // Player kosong cukup menampilkan "Belum ada radio diputar"; daftar di atasnya sudah
+  // menunjukkan cara memutar.
+  showStatus("");
   clearMediaSession();
   updatePlaybackUI();
 }
@@ -2004,17 +2117,17 @@ function markStreamFailed(station, error) {
     ? "Perangkat tidak tersambung ke internet. Periksa koneksi, lalu coba lagi."
     : streamFailureMessage(station, error);
   showStatus(failureMsg, true);
-  if (!unsupported) {
-    showToast(failureMsg, {
-      icon: "wifiOff",
-      actionLabel: "Coba lagi",
-      // Pengguna bisa sudah memilih stasiun lain sebelum toast hilang. Tombol ini hanya
-      // memutar ulang stasiun yang gagal kalau stasiun itu masih ada di player.
-      onAction: () => {
-        if (currentStation && currentStation.id === station.id) playStation(station);
-      }
-    });
-  }
+  // Tombol Coba lagi ada di player. Toast menawarkan jalan lain: radio berikutnya di daftar
+  // yang sedang dibuka, dengan stasiun yang sudah gagal dilewati (playAdjacent).
+  showToast(failureMsg, {
+    icon: unsupported ? "" : "wifiOff",
+    actionLabel: "Radio berikutnya",
+    // Pengguna bisa sudah memilih stasiun lain sebelum toast hilang. Tombol ini hanya
+    // berjalan kalau stasiun yang gagal masih ada di player.
+    onAction: () => {
+      if (currentStation && currentStation.id === station.id) playAdjacent(1);
+    }
+  });
   setMediaPlaybackState("none");
   updatePlaybackUI();
 }
@@ -2564,6 +2677,53 @@ function observeLayout() {
   window.addEventListener("resize", updateLayoutHeight);
 }
 
+// Mobile: judul dan tombol Traktir/Tentang disembunyikan saat daftar di-scroll ke bawah, dan
+// muncul lagi saat di-scroll ke atas atau kembali ke awal daftar. Daftar mendapat ruang
+// tambahan setinggi judul. Tinggi area scroll berubah saat judul disembunyikan, dan di ujung
+// daftar itu menggeser scrollTop; event scroll selama transisi diabaikan supaya judul tidak
+// muncul dan hilang berulang.
+const COMPACT_HERO_QUERY = window.matchMedia("(max-width: 900px)");
+const COMPACT_HERO_MIN_TOP = 64;
+const COMPACT_HERO_DELTA = 12;
+const COMPACT_HERO_LOCK_MS = 320;
+
+function watchCompactHero() {
+  let lastTop = 0;
+  let lockUntil = 0;
+
+  const setCompact = compact => {
+    if (appShell.classList.contains("is-compact") === compact) return;
+    appShell.classList.toggle("is-compact", compact);
+    lockUntil = performance.now() + COMPACT_HERO_LOCK_MS;
+  };
+
+  const onScroll = event => {
+    if (!COMPACT_HERO_QUERY.matches) return;
+    const top = event.currentTarget.scrollTop;
+    if (performance.now() < lockUntil) {
+      lastTop = top;
+      return;
+    }
+    if (top < COMPACT_HERO_MIN_TOP / 2) {
+      setCompact(false);
+    } else if (top - lastTop > COMPACT_HERO_DELTA && top > COMPACT_HERO_MIN_TOP) {
+      setCompact(true);
+    } else if (lastTop - top > COMPACT_HERO_DELTA) {
+      setCompact(false);
+    } else {
+      return;
+    }
+    lastTop = top;
+  };
+
+  [radioScroll, favoriteScroll, historyScroll].forEach(panel => {
+    if (panel) panel.addEventListener("scroll", onScroll, { passive: true });
+  });
+  // Pindah ke desktop, atau fokus keyboard masuk ke judul: judul selalu tampil.
+  COMPACT_HERO_QUERY.addEventListener("change", () => setCompact(false));
+  heroHeader.addEventListener("focusin", () => setCompact(false));
+}
+
 // Tinggi panel = judul + baris utuh. Jumlah baris = HISTORY_LIMIT, atau sebanyak yang
 // muat di layar (minimal 3), supaya baris terakhir tidak terpotong oleh player.
 function updateLayoutHeight() {
@@ -2578,7 +2738,10 @@ function updateLayoutHeight() {
 
   const row = (historyListDesktop && historyListDesktop.querySelector(".row")) || historyList.querySelector(".row");
   const measuredHeight = row ? row.getBoundingClientRect().height : 0;
-  const rowHeight = measuredHeight > 0 ? measuredHeight : 61;
+  // Tanpa baris riwayat, tinggi satu baris diperkirakan 57px (diukur di Chromium). Kalau
+  // perkiraan ini berbeda dari baris sungguhan, jendela berubah tinggi dan judul bergeser
+  // saat radio pertama diputar.
+  const rowHeight = measuredHeight > 0 ? measuredHeight : 57;
   const headerHeight = header.getBoundingClientRect().height;
 
   const appStyle = getComputedStyle(appShell);
@@ -2591,7 +2754,6 @@ function updateLayoutHeight() {
     (appFooter.offsetHeight
       ? (parseFloat(appStyle.rowGap) || 0) + parseFloat(getComputedStyle(appFooter).marginTop)
       : 0) +
-    controlsForm.offsetHeight +
     miniPlayer.offsetHeight +
     2; // border atas dan bawah jendela
   const fittingRows = Math.floor((window.innerHeight - chromeHeight - headerHeight) / rowHeight);
@@ -2805,10 +2967,59 @@ function hideToast() {
   toastActionHandler = null;
 }
 
-// "bahasa indonesia,indonesian" menjadi "Bahasa Indonesia".
+// Radio Browser menulis bahasa sebagai teks bebas, umumnya nama Inggris ("javanese"), kadang
+// kode ("id") atau nama lokal ("bahasa indonesia"). Teks itu dicocokkan ke kode ISO 639-1 lalu
+// ditampilkan dengan nama Indonesia dari Intl.DisplayNames ("Jawa"). Yang tidak cocok
+// ditampilkan apa adanya dengan huruf besar di awal kata.
+const LANGUAGE_CODES = [
+  "id", "jv", "su", "ms", "en", "ar", "zh", "ja", "ko", "hi", "th", "vi", "tl", "nl", "de", "fr",
+  "es", "pt", "it", "ru", "tr", "fa", "ur", "bn", "ta", "te", "pl", "uk", "el", "he", "sv", "no",
+  "da", "fi", "cs", "sk", "hu", "ro", "bg", "sr", "hr", "sl", "ca", "eu", "gl", "ga", "cy", "is",
+  "et", "lv", "lt", "sq", "mk", "ka", "hy", "az", "kk", "uz", "mn", "ne", "si", "km", "lo", "my",
+  "sw", "am", "yo", "ha", "zu", "af", "pa", "gu", "mr", "kn", "ml", "ps", "ku", "la"
+];
+const LANGUAGE_ALIASES = { "bahasa indonesia": "id", "bahasa": "id", "bahasa melayu": "ms", "malay": "ms" };
+let languageIndex = null;
+
+function createLanguageNames() {
+  try {
+    return {
+      en: new Intl.DisplayNames(["en"], { type: "language" }),
+      id: new Intl.DisplayNames(["id"], { type: "language" })
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function languageCode(name) {
+  if (!languageIndex) {
+    languageIndex = new Map(Object.entries(LANGUAGE_ALIASES));
+    for (const code of LANGUAGE_CODES) {
+      languageIndex.set(code, code);
+      try {
+        const english = languageNames.en.of(code);
+        if (english) languageIndex.set(english.toLowerCase(), code);
+      } catch (error) {
+        // Kode yang tidak dikenal browser dilewati.
+      }
+    }
+  }
+  return languageIndex.get(name.toLowerCase()) || "";
+}
+
 function formatLanguage(value) {
   const first = String(value || "").split(",")[0].trim();
   if (!first) return "";
+  const code = languageNames ? languageCode(first) : "";
+  if (code) {
+    try {
+      const name = languageNames.id.of(code);
+      if (name && name !== code) return name.replace(/^\S/, letter => letter.toUpperCase());
+    } catch (error) {
+      // Lanjut ke teks aslinya.
+    }
+  }
   return first.replace(/(^|\s)\S/g, letter => letter.toUpperCase());
 }
 

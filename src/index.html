@@ -62,88 +62,88 @@
     </header>
 
     <div class="window">
-      <form id="controls" class="controls" role="search" aria-label="Cari radio">
-        <div class="controls-search">
-          <input
-            id="searchInput"
-            type="search"
-            placeholder="Cari nama radio..."
-            autocomplete="off"
-            enterkeyhint="search"
-            aria-label="Cari nama radio"
-          />
-          <button
-            id="searchClearButton"
-            class="search-clear"
-            type="button"
-            title="Hapus pencarian"
-            aria-label="Hapus pencarian"
-            hidden
-          ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-        </div>
-
-        <div class="controls-filters">
-          <button
-            id="countryButton"
-            class="picker-button"
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded="false"
-            aria-controls="countryPopover"
-          >
-            <span class="visually-hidden">Negara: </span>
-            <span id="countryButtonText" class="picker-button-text">Indonesia</span>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-
-          <div id="countryPopover" class="picker-popover" role="dialog" aria-label="Pilih negara" hidden>
-            <div class="picker-filter">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
-              <input
-                id="countryFilter"
-                type="text"
-                role="combobox"
-                placeholder="Ketik nama negara..."
-                autocomplete="off"
-                autocapitalize="off"
-                spellcheck="false"
-                enterkeyhint="go"
-                aria-label="Cari negara"
-                aria-autocomplete="list"
-                aria-expanded="true"
-                aria-controls="countryList"
-              />
-            </div>
-            <ul id="countryList" class="picker-list" role="listbox" aria-label="Negara" tabindex="-1"></ul>
-            <p id="countryEmpty" class="picker-empty" hidden>Negara tidak ditemukan.</p>
-          </div>
-
-          <button
-            id="sortButton"
-            class="picker-button"
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded="false"
-            aria-controls="sortPopover"
-          >
-            <span class="visually-hidden">Urutkan: </span>
-            <span id="sortButtonText" class="picker-button-text">Terpopuler</span>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-
-          <div id="sortPopover" class="picker-popover" hidden>
-            <ul id="sortList" class="picker-list" role="listbox" aria-label="Urutkan" tabindex="-1"></ul>
-          </div>
-        </div>
-
-        <div id="activeFilter" class="active-filter" hidden>
-          <span>Genre: <strong id="activeTagLabel"></strong></span>
-          <button id="clearTagButton" class="filter-clear" type="button">Hapus filter genre</button>
-        </div>
-      </form>
-
       <main id="layout" class="layout" data-tab="radio">
-        <section id="radioSection" class="section" aria-label="Daftar radio">
+        <section id="radioSection" class="section" aria-labelledby="radioHeading">
+          <h2 id="radioHeading" class="visually-hidden">Daftar radio</h2>
+          <form id="controls" class="controls" role="search" aria-label="Cari radio">
+            <div class="controls-search">
+              <input
+                id="searchInput"
+                type="search"
+                placeholder="Cari nama radio atau genre..."
+                autocomplete="off"
+                enterkeyhint="search"
+                aria-label="Cari nama radio atau genre"
+              />
+              <button
+                id="searchClearButton"
+                class="search-clear"
+                type="button"
+                title="Hapus pencarian"
+                aria-label="Hapus pencarian"
+                hidden
+              ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+            </div>
+
+            <div class="controls-filters">
+              <button
+                id="countryButton"
+                class="picker-button"
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="countryPopover"
+              >
+                <span class="visually-hidden">Negara: </span>
+                <span id="countryButtonText" class="picker-button-text">Indonesia</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+
+              <div id="countryPopover" class="picker-popover" role="dialog" aria-label="Pilih negara" hidden>
+                <div class="picker-filter">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+                  <input
+                    id="countryFilter"
+                    type="text"
+                    role="combobox"
+                    placeholder="Ketik nama negara..."
+                    autocomplete="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    enterkeyhint="go"
+                    aria-label="Cari negara"
+                    aria-autocomplete="list"
+                    aria-expanded="true"
+                    aria-controls="countryList"
+                  />
+                </div>
+                <ul id="countryList" class="picker-list" role="listbox" aria-label="Negara" tabindex="-1"></ul>
+                <p id="countryEmpty" class="picker-empty" hidden>Negara tidak ditemukan.</p>
+              </div>
+
+              <button
+                id="sortButton"
+                class="picker-button"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-controls="sortPopover"
+              >
+                <span class="visually-hidden">Urutkan: </span>
+                <span id="sortButtonText" class="picker-button-text">Terpopuler</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+
+              <div id="sortPopover" class="picker-popover" hidden>
+                <ul id="sortList" class="picker-list" role="listbox" aria-label="Urutkan" tabindex="-1"></ul>
+              </div>
+            </div>
+
+            <div id="activeFilter" class="active-filter" hidden>
+              <span>Genre: <strong id="activeTagLabel"></strong></span>
+              <button id="clearTagButton" class="filter-clear" type="button">Hapus filter genre</button>
+            </div>
+          </form>
           <div class="section-header panel-tabs-header">
             <div class="panel-tabs" role="tablist" aria-label="Pilihan daftar">
               <button
@@ -179,13 +179,15 @@
                 aria-controls="historyScroll"
                 tabindex="-1"
               >
-                <span>Baru diputar</span>
-                <span id="historyTabCount" class="count-badge">0</span>
+                <span>Baru Diputar</span>
+                <span id="historyTabCount" class="count-badge"></span>
               </button>
             </div>
           </div>
 
           <div id="radioScroll" class="panel-scroll" tabindex="-1" role="tabpanel" aria-labelledby="tabRadio">
+            <nav id="genreBar" class="genre-bar" aria-label="Jelajahi genre"></nav>
+
             <div id="stationList" class="list">
               <div class="loading">Memuat daftar radio...</div>
             </div>
@@ -208,8 +210,8 @@
 
         <section id="historySection" class="section" aria-labelledby="historyHeading">
           <div class="section-header">
-            <h2 id="historyHeading">Baru diputar</h2>
-            <span id="historyCount" class="count-badge">0</span>
+            <h2 id="historyHeading">Baru Diputar</h2>
+            <span id="historyCount" class="count-badge"></span>
           </div>
 
           <div class="panel-scroll">
@@ -225,7 +227,7 @@
           <p class="player-status">
             <span id="liveBadge" class="live-badge" hidden>LIVE</span>
             <span id="bufferBadge" class="buffer-badge" hidden>MEMUAT</span>
-            <span id="playerStatus" role="status" aria-live="polite">Pilih radio lalu tekan Putar.</span>
+            <span id="playerStatus" role="status" aria-live="polite"></span>
             <span id="listenTime" class="listen-time" title="Durasi mendengarkan" aria-hidden="true" hidden>0:00</span>
             <span id="sleepTimerBadge" class="sleep-badge" hidden></span>
           </p>
