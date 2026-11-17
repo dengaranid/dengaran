@@ -568,6 +568,7 @@ kbd {
   padding: 0 12px;
   color: var(--text);
   background: var(--panel-soft);
+  font-size: 0.92rem;
   text-align: left;
 }
 
@@ -661,6 +662,7 @@ kbd {
   min-height: 40px;
   padding: 0 12px;
   color: var(--text-soft);
+  font-size: 0.92rem;
   cursor: pointer;
   scroll-margin: 44px 0 4px;
 }
@@ -735,6 +737,7 @@ kbd {
   margin: 0;
   padding: 20px 12px;
   color: var(--muted);
+  font-size: 0.92rem;
   text-align: center;
 }
 
@@ -745,6 +748,12 @@ kbd {
   padding: 0 12px;
   color: var(--text);
   background-color: var(--panel-soft);
+}
+
+/* Placeholder disamakan dengan teks pemilih. Teks yang diketik tetap 16px, supaya iOS Safari
+   tidak memperbesar halaman saat kolom disentuh. */
+.controls input::placeholder {
+  font-size: 0.92rem;
 }
 
 .active-filter {
