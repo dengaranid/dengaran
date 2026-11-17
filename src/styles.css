@@ -1321,7 +1321,7 @@ kbd {
 /* Codec dan bitrate: huruf monospace, mirip tampilan alat radio. */
 .meta-tech {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.92em;
+  font-size: 0.86em;
   letter-spacing: 0.02em;
 }
 
@@ -1527,25 +1527,32 @@ kbd {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Ukuran mengikuti .card .icon-btn dan .row .icon-btn (40px, 44px di layar sentuh).
+   Hati tanpa border di semua keadaan: status favorit ditandai bentuk ikon (kosong atau
+   terisi), dan tombol putar yang berborder di sebelahnya tetap jadi aksi utama di baris. */
 .fav-btn {
-  width: 36px;
-  height: 36px;
   border-color: transparent;
   color: var(--muted);
   background: transparent;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-/* Warna favorit hanya untuk ikon hati dan border tipisnya, tidak untuk teks atau latar
-   besar, supaya tidak tertukar dengan pink terang pesan error. Kontras 4.3:1 di panel. */
-.fav-btn:hover {
+/* Warna favorit hanya untuk ikon hati, tidak untuk teks atau latar besar, supaya tidak
+   tertukar dengan pink terang pesan error. Ikon 4.42:1 di panel dan 3.59:1 di baris
+   yang sedang diputar. */
+.fav-btn[aria-pressed="true"],
+.fav-btn:focus-visible {
   color: var(--favorite);
-  border-color: rgba(169, 109, 109, 0.55);
 }
 
-.fav-btn[aria-pressed="true"] {
-  color: var(--favorite);
-  border-color: rgba(169, 109, 109, 0.55);
-  background: rgba(169, 109, 109, 0.12);
+/* Hover dibatasi ke perangkat dengan pointer hover, sama dengan tombol putar: di layar
+   sentuh :hover tertinggal sesudah tap, dan hati yang baru dilepas tetap tampil rose.
+   Latar tipis saat hover memperlihatkan area klik, juga untuk hati yang aktif. */
+@media (hover: hover) {
+  .fav-btn:hover {
+    color: var(--favorite);
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 
 .fav-btn[aria-pressed="true"] .icon {
