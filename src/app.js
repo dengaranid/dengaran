@@ -1104,7 +1104,7 @@ function renderHistory() {
   if (historyTabCount) historyTabCount.textContent = countStr;
 
   const html = history.length === 0
-    ? `<li class="empty">Belum ada radio yang diputar.</li>`
+    ? `<li class="empty">Belum ada radio yang diputar.<span class="empty-hint">Radio yang Anda putar akan muncul di sini.</span></li>`
     : history.map(createHistoryRow).join("");
 
   if (historyList) historyList.innerHTML = html;
@@ -1130,14 +1130,15 @@ function insecureBadgeHtml(station) {
     : "";
 }
 
-function metaText(station, { withLanguage = true } = {}) {
+// HTML yang sudah di-escape. Codec dan bitrate dibungkus span supaya tampil monospace.
+function metaHtml(station, { withLanguage = true } = {}) {
   const parts = [
-    localizedCountry(station.countryCode, station.country) || "Negara tidak diketahui"
+    escapeHtml(localizedCountry(station.countryCode, station.country) || "Negara tidak diketahui")
   ];
   const language = withLanguage ? formatLanguage(station.language) : "";
-  if (language) parts.push(language);
+  if (language) parts.push(escapeHtml(language));
   const quality = qualityText(station);
-  if (quality) parts.push(quality);
+  if (quality) parts.push(`<span class="meta-tech">${escapeHtml(quality)}</span>`);
   return parts.join(" • ");
 }
 
@@ -1194,7 +1195,7 @@ function createStationCard(station) {
 
         <div class="card-sub">
           ${insecureBadgeHtml(station)}
-          <p class="meta">${escapeHtml(metaText(station))}</p>
+          <p class="meta">${metaHtml(station)}</p>
           ${tagsHtml}
         </div>
         <p class="card-flag" ${failedStations.has(station.id) ? "" : "hidden"}>
@@ -1216,7 +1217,7 @@ function createHistoryRow(station) {
     <li class="row ${stateClasses(state)}" data-station-id="${escapeHtml(station.id)}">
       <div class="row-main">
         <span class="row-name">${NOW_DOT_HTML}<span>${escapeHtml(station.name)}</span></span>
-        <span class="row-meta">${insecureBadgeHtml(station)}${escapeHtml(metaText(station, { withLanguage: false }))}</span>
+        <span class="row-meta">${insecureBadgeHtml(station)}${metaHtml(station, { withLanguage: false })}</span>
       </div>
       ${playButtonHtml(station, state, "icon")}
       ${favButtonHtml(station)}
@@ -2064,7 +2065,7 @@ function handleAudioWaiting() {
 
   isBuffering = true;
   bufferingStartTime = audioPlayer.currentTime;
-  showStatus("Menunggu data stream...");
+  showStatus("Menunggu data siaran...");
   stallTimer = failAfter(STALL_TIMEOUT_MS, currentStation, playRequestId);
   updateMediaSessionPosition();
   updatePlaybackUI();
