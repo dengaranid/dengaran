@@ -99,11 +99,13 @@ LANDING_OPEN_HINT = (
 # kind "city": dicocokkan dengan nama dan kolom state stasiun (regex, awal kata).
 # kind "genre": dicocokkan dengan tag persis. kind "all": semua stasiun.
 # "tab": label pendek di baris tab navigasi antar halaman.
+# "faq_place": nama tempat di teks Pertanyaan umum (landing_faq). Halaman tanpa field ini tidak
+# menampilkan bagian itu.
 LANDING_PAGES = [
     {"slug": "radio-online-indonesia", "tab": "Semua", "kind": "all", "heading": "Radio Online Indonesia",
      "intro": "Radio online dan radio streaming dari seluruh Indonesia yang bisa didengar gratis di browser."},
     {"slug": "radio-online-jakarta", "tab": "Jakarta", "kind": "city", "heading": "Radio Online Jakarta",
-     "pattern": r"\bjakarta",
+     "pattern": r"\bjakarta", "faq_place": "Jakarta",
      "intro": "Stasiun radio Jakarta yang siarannya bisa didengar langsung di browser."},
     {"slug": "radio-online-bandung", "tab": "Bandung", "kind": "city", "heading": "Radio Online Bandung dan Jawa Barat",
      "pattern": r"\bbandung|\bjawa barat|\bwest java",
@@ -127,7 +129,7 @@ LANDING_PAGES = [
      "tags": {"rock", "pop rock", "alternative", "metal"},
      "intro": "Radio streaming rock, alternative, dan metal dari stasiun Indonesia."},
     {"slug": "radio-berita", "tab": "Berita", "kind": "genre", "heading": "Radio Berita Online",
-     "tags": {"news", "local news", "talk", "talk show radio"},
+     "tags": {"news", "local news", "news talk", "talk", "talk show radio"},
      "intro": "Radio berita dan talk show Indonesia: berita nasional, berita lokal, dan siaran bincang-bincang."},
     {"slug": "radio-daerah", "tab": "Daerah", "kind": "genre", "heading": "Radio Budaya dan Musik Daerah",
      "tags": {"sunda", "jawa", "javanese", "campursari", "local music", "culture"},
@@ -550,6 +552,74 @@ def landing_summary(page):
     return " ".join(sentences)
 
 
+# Tag yang sama dengan halaman Berita, untuk pertanyaan radio berita di landing_faq.
+LANDING_NEWS_TAGS = next(page["tags"] for page in LANDING_PAGES if page["slug"] == "radio-berita")
+
+
+def landing_faq(page):
+    """Pertanyaan umum di bawah daftar stasiun, sebagai daftar (pertanyaan, jawaban). Nama stasiun
+    dan angka dihitung dari data build, jadi jawabannya ikut berubah saat rebuild. Pertanyaan yang
+    datanya tidak ada (misalnya tidak ada stasiun berita) tidak ditulis."""
+    place = page.get("faq_place")
+    if not place:
+        return []
+    stations = page["matched"]
+    faq = [(
+        f"Bagaimana cara mendengarkan radio {place} di HP?",
+        "Buka halaman ini di browser HP, pilih stasiun, lalu tekan Putar di pemutar Dengaran. "
+        "Tidak perlu memasang aplikasi atau membuat akun. Siaran tetap terdengar saat layar HP "
+        "dikunci, dan bisa dikendalikan dari notifikasi media.",
+    )]
+
+    news = [station["name"].strip() for station in stations
+            if LANDING_NEWS_TAGS.intersection(station_tags(station))][:4]
+    if news:
+        faq.append((
+            f"Radio {place} mana yang menyiarkan berita?",
+            f"Stasiun di halaman ini yang mencantumkan genre berita atau talk show: {join_id(news)}.",
+        ))
+
+    # sorted stabil: bitrate yang sama tetap berurutan dari yang paling sering diputar.
+    by_bitrate = sorted((station for station in stations if bitrate_kbps(station)),
+                        key=lambda station: -bitrate_kbps(station))[:3]
+    if by_bitrate:
+        listed = [f"{station['name'].strip()} ({bitrate_kbps(station)} kbps)" for station in by_bitrate]
+        faq.append((
+            f"Radio {place} mana yang kualitas suaranya paling jernih?",
+            f"Menurut bitrate yang dicantumkan di Radio Browser: {join_id(listed)}. Makin tinggi "
+            "bitrate, makin jernih suaranya dan makin banyak kuota yang dipakai. Stream 64 kbps "
+            "memakai sekitar 29 MB per jam, dan 128 kbps sekitar 58 MB per jam.",
+        ))
+
+    faq.append((
+        f"Kenapa radio {place} tidak bisa diputar?",
+        "Siaran diambil langsung dari server tiap stasiun. Kalau server stasiun sedang tidak aktif "
+        "atau pindah alamat, siarannya tidak bisa diputar: pilih stasiun lain dari daftar ini, atau "
+        "coba lagi beberapa saat kemudian. Kalau koneksi terputus saat siaran sedang berjalan, "
+        "Dengaran menyambung ulang secara otomatis.",
+    ))
+    return faq
+
+
+def landing_faq_html(page):
+    faq = landing_faq(page)
+    if not faq:
+        return ""
+    items = "\n".join(
+        f'      <div class="landing-faq-item">\n'
+        f'        <h3>{html_lib.escape(question)}</h3>\n'
+        f'        <p>{html_lib.escape(answer)}</p>\n'
+        f'      </div>'
+        for question, answer in faq
+    )
+    return (
+        '\n\n    <section class="landing-faq" aria-labelledby="landing-faq-title">\n'
+        '      <h2 id="landing-faq-title">Pertanyaan umum</h2>\n'
+        f"{items}\n"
+        "    </section>"
+    )
+
+
 def landing_tabs_html(pages, current_slug):
     """Baris tab Kota dan Genre di atas daftar stasiun. Tiap tab adalah link biasa ke halaman
     lain, jadi bisa dibaca mesin pencari tanpa JS. Tab halaman yang sedang dibuka ditandai
@@ -680,7 +750,7 @@ def landing_page_html(page, pages, css_name, built_on, head):
 
     <ol class="landing-list">
 {chr(10).join(rows)}
-    </ol>
+    </ol>{landing_faq_html(page)}
   </main>
 
   <footer class="landing-footer">

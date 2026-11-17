@@ -53,6 +53,7 @@ Halaman per kota dan genre didaftarkan di `LANDING_PAGES` di `scripts/build_publ
 - Entri ganda digabung kalau kata di namanya sama, tanpa melihat urutan dan huruf besar (`Jak FM 101` dan `JAK 101 FM`).
 - Stasiun dan tag di `src/blocklist.json` ikut disaring.
 - Paragraf ringkasan di tiap halaman dihitung dari datanya: jumlah stasiun, yang paling sering diputar, kota atau genre terbanyak, dan bitrate.
+- Halaman yang punya field `faq_place` menampilkan bagian "Pertanyaan umum" di bawah daftar stasiun (`landing_faq`). Stasiun berita dan bitrate tertinggi di jawabannya dihitung dari data build. Pertanyaan yang datanya kosong tidak ditulis.
 
 Tiap stasiun menautkan ke `/?station=<stationuuid>`. `restoreLinkedStation` di `src/app.js` menyiapkan stasiun itu di player tanpa memutarnya.
 
