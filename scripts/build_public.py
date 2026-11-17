@@ -348,8 +348,14 @@ def name_has_link_or_markup(name):
     return any(text in lowered for text in ("http", "www.", "<", ">"))
 
 
+# Teks pengganti dari aplikasi pengirim data, bukan genre. Daftar yang sama ada di
+# PLACEHOLDER_TAGS src/app.js.
+PLACEHOLDER_TAGS = {"undefined", "null"}
+
+
 def station_tags(station):
-    return [tag.strip().lower() for tag in (station.get("tags") or "").split(",") if tag.strip()]
+    tags = (tag.strip().lower() for tag in (station.get("tags") or "").split(","))
+    return [tag for tag in tags if tag and tag not in PLACEHOLDER_TAGS]
 
 
 def station_name_key(name):

@@ -35,6 +35,12 @@ const blockedStationIds = new Set(blocklist.stations.map(station => String(stati
 // Browser berarti format musik (adult contemporary), dan "sex" ada di nama seperti "BBC Essex".
 const BLOCKED_TAGS = new Set(blocklist.tags.map(tag => String(tag).toLowerCase()));
 
+// Teks pengganti dari aplikasi pengirim data, bukan genre. Di Radio Browser ada stasiun dengan
+// tag "undefined". Daftar yang sama ada di PLACEHOLDER_TAGS scripts/build_public.py.
+// Dideklarasikan di sini, sebelum Favorit dan Baru diputar dibaca dari storage: allTags
+// dipanggil saat itu, dan const yang dideklarasikan sesudahnya belum bisa dibaca.
+const PLACEHOLDER_TAGS = new Set(["undefined", "null"]);
+
 function isBlockedStation(station) {
   if (!station) return false;
   if (blockedStationIds.has(String(station.id).toLowerCase())) return true;
@@ -2809,7 +2815,7 @@ function allTags(value) {
   return String(value || "")
     .split(",")
     .map(tag => tag.trim().toLowerCase())
-    .filter(Boolean);
+    .filter(tag => tag && !PLACEHOLDER_TAGS.has(tag));
 }
 
 // Tiga tag pertama yang unik dan pendek, untuk ditampilkan di kartu.
