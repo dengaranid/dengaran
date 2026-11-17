@@ -1204,8 +1204,8 @@ function createStationCard(station) {
       </div>
 
       <div class="card-actions">
-        ${playButtonHtml(station, state, "icon")}
         ${favButtonHtml(station)}
+        ${playButtonHtml(station, state, "icon")}
       </div>
     </article>
   `;
@@ -1219,8 +1219,8 @@ function createHistoryRow(station) {
         <span class="row-name">${NOW_DOT_HTML}<span>${escapeHtml(station.name)}</span></span>
         <span class="row-meta">${insecureBadgeHtml(station)}${metaHtml(station, { withLanguage: false })}</span>
       </div>
-      ${playButtonHtml(station, state, "icon")}
       ${favButtonHtml(station)}
+      ${playButtonHtml(station, state, "icon")}
     </li>
   `;
 }
