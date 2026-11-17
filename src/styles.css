@@ -847,8 +847,8 @@ kbd {
 .section-header h2 {
   margin: 0;
   color: var(--muted);
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 /* Jumlah radio di judul grup, tab, dan header panel: angka muted tanpa latar.
@@ -858,8 +858,8 @@ kbd {
   align-self: center;
   margin-left: 4px;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 18px;
   text-align: center;
@@ -947,8 +947,8 @@ kbd {
   color: var(--muted);
   background: transparent;
   font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -2152,6 +2152,26 @@ kbd {
     min-height: 69px;
     background: var(--surface-sunken);
   }
+
+  /* Bar tab, bar Genre, kartu radio, dan baris Baru diputar sama tinggi (58px termasuk
+     border bawah). Dengan judul Baru diputar 69px, garis di bawah baris kiri dan kanan
+     segaris selama kedua daftar belum digulir. Tinggi isi kartu (45px) bergantung pada
+     font yang dirender browser, jadi kartu juga diberi min-height: padding 6px membuat
+     kartu tepat 58px, dan isi yang setengah piksel lebih pendek tetap 58px. */
+  .panel-tab {
+    min-height: 57px;
+  }
+
+  .card {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .genre-bar,
+  .card,
+  .row {
+    min-height: 58px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -2306,7 +2326,6 @@ kbd {
 
   .panel-tab {
     padding: 0 6px;
-    font-size: 0.88rem;
   }
 
   /* Di mobile, section riwayat kolom desktop disembunyikan karena riwayat tampil di tab utama. */

@@ -2690,10 +2690,10 @@ function updateLayoutHeight() {
 
   const row = (historyListDesktop && historyListDesktop.querySelector(".row")) || historyList.querySelector(".row");
   const measuredHeight = row ? row.getBoundingClientRect().height : 0;
-  // Tanpa baris riwayat, tinggi satu baris diperkirakan 57px (diukur di Chromium). Kalau
+  // Tanpa baris riwayat, tinggi satu baris diperkirakan 58px (min-height .row di desktop). Kalau
   // perkiraan ini berbeda dari baris sungguhan, jendela berubah tinggi dan judul bergeser
   // saat radio pertama diputar.
-  const rowHeight = measuredHeight > 0 ? measuredHeight : 57;
+  const rowHeight = measuredHeight > 0 ? measuredHeight : 58;
   const headerHeight = header.getBoundingClientRect().height;
 
   const appStyle = getComputedStyle(appShell);
