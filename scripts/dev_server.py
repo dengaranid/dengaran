@@ -17,6 +17,12 @@ from urllib.parse import urlsplit
 
 
 class PagesHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        # Tanpa header ini browser memakai cache heuristik dan bisa terus memuat app.js lama
+        # sesudah file diubah. no-cache membuat browser bertanya ulang (304 kalau tidak berubah).
+        self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def send_head(self):
         url = urlsplit(self.path)
         root = Path(self.directory)
