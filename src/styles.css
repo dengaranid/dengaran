@@ -1382,13 +1382,13 @@ kbd {
   border-bottom: 1px solid var(--border);
 }
 
+/* Huruf kapital di awal kata, sama dengan tab panel. Ukurannya sama dengan chip genre,
+   supaya label tidak lebih besar dari pilihan di sampingnya; muted dan 600 membedakannya. */
 .genre-bar-label {
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .genre-list {
@@ -2291,25 +2291,6 @@ kbd {
 
   .search-clear {
     right: 16px;
-  }
-
-  /* Judul disembunyikan saat daftar di-scroll ke bawah (watchCompactHero di app.js), supaya
-     daftar mendapat ruang setinggi judul. Margin bawah negatif menutup gap .app. */
-  .hero {
-    max-height: 120px;
-    transition: max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease,
-      margin-bottom 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .app.is-compact .hero {
-    max-height: 0;
-    margin-bottom: -10px;
-    overflow: hidden;
-    opacity: 0;
-    visibility: hidden;
-    /* visibility berubah sesudah animasi selesai, supaya judul sempat memudar. */
-    transition: max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease,
-      margin-bottom 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.24s;
   }
 
   .picker-popover {

@@ -509,7 +509,6 @@ async function init() {
   restoreLinkedStation();
   updatePlaybackUI();
   observeLayout();
-  watchCompactHero();
   observeLoadMore();
   selectInitialCountry();
   loadCountries();
@@ -2675,53 +2674,6 @@ function observeLayout() {
   observer.observe(heroHeader);
   observer.observe(controlsForm);
   window.addEventListener("resize", updateLayoutHeight);
-}
-
-// Mobile: judul dan tombol Traktir/Tentang disembunyikan saat daftar di-scroll ke bawah, dan
-// muncul lagi saat di-scroll ke atas atau kembali ke awal daftar. Daftar mendapat ruang
-// tambahan setinggi judul. Tinggi area scroll berubah saat judul disembunyikan, dan di ujung
-// daftar itu menggeser scrollTop; event scroll selama transisi diabaikan supaya judul tidak
-// muncul dan hilang berulang.
-const COMPACT_HERO_QUERY = window.matchMedia("(max-width: 900px)");
-const COMPACT_HERO_MIN_TOP = 64;
-const COMPACT_HERO_DELTA = 12;
-const COMPACT_HERO_LOCK_MS = 320;
-
-function watchCompactHero() {
-  let lastTop = 0;
-  let lockUntil = 0;
-
-  const setCompact = compact => {
-    if (appShell.classList.contains("is-compact") === compact) return;
-    appShell.classList.toggle("is-compact", compact);
-    lockUntil = performance.now() + COMPACT_HERO_LOCK_MS;
-  };
-
-  const onScroll = event => {
-    if (!COMPACT_HERO_QUERY.matches) return;
-    const top = event.currentTarget.scrollTop;
-    if (performance.now() < lockUntil) {
-      lastTop = top;
-      return;
-    }
-    if (top < COMPACT_HERO_MIN_TOP / 2) {
-      setCompact(false);
-    } else if (top - lastTop > COMPACT_HERO_DELTA && top > COMPACT_HERO_MIN_TOP) {
-      setCompact(true);
-    } else if (lastTop - top > COMPACT_HERO_DELTA) {
-      setCompact(false);
-    } else {
-      return;
-    }
-    lastTop = top;
-  };
-
-  [radioScroll, favoriteScroll, historyScroll].forEach(panel => {
-    if (panel) panel.addEventListener("scroll", onScroll, { passive: true });
-  });
-  // Pindah ke desktop, atau fokus keyboard masuk ke judul: judul selalu tampil.
-  COMPACT_HERO_QUERY.addEventListener("change", () => setCompact(false));
-  heroHeader.addEventListener("focusin", () => setCompact(false));
 }
 
 // Tinggi panel = judul + baris utuh. Jumlah baris = HISTORY_LIMIT, atau sebanyak yang
