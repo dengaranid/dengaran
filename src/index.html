@@ -139,9 +139,22 @@
               </div>
             </div>
 
-            <div id="activeFilter" class="active-filter" hidden>
-              <span>Genre: <strong id="activeTagLabel"></strong></span>
-              <button id="clearTagButton" class="filter-clear" type="button">Hapus filter genre</button>
+            <div class="active-filters">
+              <div id="activeFilter" class="active-filter" hidden>
+                <span>Genre:</span>
+                <button id="clearTagButton" class="filter-clear" type="button" title="Hapus filter genre">
+                  <strong id="activeTagLabel"></strong><span class="visually-hidden">, hapus filter genre</span>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+
+              <div id="activeCodecFilter" class="active-filter" hidden>
+                <span>Codec:</span>
+                <button id="clearCodecButton" class="filter-clear" type="button" title="Hapus filter codec">
+                  <strong id="activeCodecLabel"></strong><span class="visually-hidden">, hapus filter codec</span>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
             </div>
           </form>
           <div class="section-header panel-tabs-header">

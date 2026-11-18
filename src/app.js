@@ -200,6 +200,9 @@ const sortList = document.getElementById("sortList");
 const activeFilter = document.getElementById("activeFilter");
 const activeTagLabel = document.getElementById("activeTagLabel");
 const clearTagButton = document.getElementById("clearTagButton");
+const activeCodecFilter = document.getElementById("activeCodecFilter");
+const activeCodecLabel = document.getElementById("activeCodecLabel");
+const clearCodecButton = document.getElementById("clearCodecButton");
 const resultAnnouncer = document.getElementById("resultAnnouncer");
 const radioSection = document.getElementById("radioSection");
 const tabRadio = document.getElementById("tabRadio");
@@ -262,6 +265,8 @@ let isBuffering = false;
 // Posisi audio saat status menunggu dimulai. Kalau currentTime melewati nilai ini, audio masih berjalan.
 let bufferingStartTime = 0;
 let activeTag = "";
+// Codec yang dipilih dengan mengklik codec di kartu stasiun, dalam bentuk qualityText ("MP3", "AAC").
+let activeCodec = "";
 // Kode negara yang dipakai pencarian. ALL_COUNTRIES berarti tanpa filter negara.
 let selectedCountry = DEFAULT_COUNTRY;
 // Nilai order untuk /stations/search, dipilih lewat pemilih urutan.
@@ -421,6 +426,10 @@ sortList.addEventListener("blur", event => {
 loadMoreButton.addEventListener("click", () => loadStations({ append: true }));
 clearTagButton.addEventListener("click", () => {
   setActiveTag("");
+  searchInput.focus();
+});
+clearCodecButton.addEventListener("click", () => {
+  setActiveCodec("");
   searchInput.focus();
 });
 
@@ -907,6 +916,55 @@ function setActiveTag(tag) {
   startNewSearch();
 }
 
+function setActiveCodec(codec) {
+  activeCodec = codec;
+  activeCodecFilter.hidden = !codec;
+  activeCodecLabel.textContent = codec ? codecGroup(codec).join(" / ") : "";
+  startNewSearch();
+}
+
+// Radio Browser mencocokkan parameter codec secara persis, dan menyimpan AAC dan AAC+ (HE-AAC)
+// sebagai dua codec. Keduanya AAC, jadi memilih salah satunya menampilkan keduanya.
+const CODEC_GROUPS = [["AAC", "AAC+"]];
+
+function codecGroup(codec) {
+  return CODEC_GROUPS.find(group => group.includes(codec)) || [codec];
+}
+
+// Codec pertama stasiun dalam bentuk yang ditampilkan, "" kalau tidak diketahui.
+function stationCodec(station) {
+  const codec = (station.codec || "").split(",")[0].trim().toUpperCase();
+  return codec === "UNKNOWN" ? "" : codec;
+}
+
+function matchesActiveCodec(station) {
+  return !activeCodec || codecGroup(activeCodec).includes(stationCodec(station));
+}
+
+// Satu halaman /stations/search. Dengan filter codec, satu request dikirim per codec di grupnya,
+// lalu hasilnya digabung dan diurutkan ulang dengan urutan yang sama. full bernilai true kalau
+// salah satu request mengembalikan satu halaman penuh, artinya masih ada halaman berikutnya.
+async function fetchStationPage(params, signal) {
+  const codecs = activeCodec ? codecGroup(activeCodec) : [""];
+  const pages = await Promise.all(codecs.map(codec => {
+    const query = new URLSearchParams(params);
+    if (codec) query.set("codec", codec);
+    return apiFetch(`/stations/search?${query.toString()}`, { signal });
+  }));
+  if (pages.includes("aborted")) return { data: "aborted", full: false };
+  if (!pages.every(Array.isArray)) return { data: null, full: false };
+  const full = pages.some(page => page.length === PAGE_SIZE);
+  if (pages.length === 1) return { data: pages[0], full };
+  return { data: sortStationData(pages.flat(), params.get("order"), params.get("reverse") === "true"), full };
+}
+
+function sortStationData(data, order, reverse) {
+  const sorted = data.slice().sort((a, b) => order === "name"
+    ? String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" })
+    : (Number(a[order]) || 0) - (Number(b[order]) || 0));
+  return reverse ? sorted.reverse() : sorted;
+}
+
 async function loadStations({ append = false } = {}) {
   const countryCode = selectedCountry;
   const searchTerm = searchInput.value.trim();
@@ -945,7 +1003,7 @@ async function loadStations({ append = false } = {}) {
   if (activeTag) params.set("tag", activeTag);
   if (SECURE_PAGE) params.set("is_https", "true");
 
-  const data = await apiFetch(`/stations/search?${params.toString()}`, { signal });
+  const { data, full } = await fetchStationPage(params, signal);
 
   // Request dibatalkan karena ada pencarian baru: abaikan.
   if (data === "aborted") return;
@@ -981,7 +1039,7 @@ async function loadStations({ append = false } = {}) {
   let newStations = toStations(data);
 
   currentOffset += PAGE_SIZE;
-  hasMore = data.length === PAGE_SIZE;
+  hasMore = full;
 
   // Kotak cari mencari nama. Kalau hasil nama kurang dari satu halaman, kata yang sama juga
   // dicari sebagai genre, supaya "jazz" atau "dangdut" menemukan stasiun yang tidak memakai
@@ -990,7 +1048,7 @@ async function loadStations({ append = false } = {}) {
     params.delete("name");
     params.set("tag", searchTerm.toLowerCase());
     params.set("offset", "0");
-    const byTag = await apiFetch(`/stations/search?${params.toString()}`, { signal });
+    const { data: byTag } = await fetchStationPage(params, signal);
     if (byTag === "aborted") return;
     if (Array.isArray(byTag)) {
       const known = new Set(newStations.map(station => station.id));
@@ -1000,7 +1058,10 @@ async function loadStations({ append = false } = {}) {
 
   if (append) {
     // Sisipkan kartu baru saja. Kartu lama tidak diganti, jadi fokus keyboard tetap.
+    // Favorit yang sudah tampil di atas tidak ditampilkan dua kali.
     stations = stations.concat(newStations);
+    const shown = new Set(Array.from(stationList.querySelectorAll("[data-station-id]"), card => card.dataset.stationId));
+    newStations = newStations.filter(station => !shown.has(station.id));
     stationList.insertAdjacentHTML("beforeend", newStations.map(createStationCard).join(""));
     trimHiddenTags(stationList);
     updateStationCount();
@@ -1043,13 +1104,35 @@ function visibleFavorites() {
   return favorites.filter(station => {
     if (term && !station.name.toLowerCase().includes(term)) return false;
     if (activeTag && !allTags(station.tags).includes(activeTag)) return false;
+    return matchesActiveCodec(station);
+  });
+}
+
+// Favorit yang cocok dengan pencarian di tab Radio: nama, atau genre kalau kotak cari dipakai
+// tanpa genre aktif (sama dengan pencarian ke API), di negara yang dipilih. Tanpa kata
+// pencarian dan genre, daftar kosong: daftar negara biasa tidak disisipi favorit.
+function matchingFavoritesForSearch() {
+  const term = searchInput.value.trim().toLowerCase();
+  if (!term && !activeTag && !activeCodec) return [];
+  return favorites.filter(station => {
+    const tags = allTags(station.tags);
+    if (activeTag && !tags.includes(activeTag)) return false;
+    if (!matchesActiveCodec(station)) return false;
+    if (term && !station.name.toLowerCase().includes(term)
+      && (activeTag || !tags.some(tag => tag.includes(term)))) return false;
+    if (selectedCountry !== ALL_COUNTRIES && station.countryCode
+      && station.countryCode.toUpperCase() !== selectedCountry) return false;
     return true;
   });
 }
 
-// Hasil pencarian radio. Stasiun favorit tetap muncul di sini.
+// Hasil pencarian radio. Favorit yang cocok ditaruh paling atas, termasuk yang tidak dikirim
+// API: di halaman berikutnya, stream HTTP di halaman HTTPS, atau sudah dihapus dari Radio Browser.
 function visibleResults() {
-  return stations;
+  const pinned = matchingFavoritesForSearch();
+  if (pinned.length === 0) return stations;
+  const pinnedIds = new Set(pinned.map(station => station.id));
+  return pinned.concat(stations.filter(station => !pinnedIds.has(station.id)));
 }
 
 // ---------- Render ----------
@@ -1115,6 +1198,7 @@ function renderStations() {
       filters.push(`${kind} <strong>${escapeHtml(searchTerm)}</strong>`);
     }
     if (activeTag) filters.push(`bergenre <strong>${escapeHtml(activeTag)}</strong>`);
+    if (activeCodec) filters.push(`dengan codec <strong>${escapeHtml(codecGroup(activeCodec).join(" / "))}</strong>`);
 
     const inCountry = selectedCountry === ALL_COUNTRIES ? "" : ` di ${escapeHtml(selectedCountryName())}`;
 
@@ -1148,7 +1232,11 @@ function renderStations() {
   stationList.innerHTML = results.map(createStationCard).join("");
   trimHiddenTags(stationList);
   updateStationCount();
-  announce(`${results.length} radio ditampilkan${activeTag ? ` untuk genre ${activeTag}` : ""}.`);
+  const filterNote = [
+    activeTag ? `genre ${activeTag}` : "",
+    activeCodec ? `codec ${codecGroup(activeCodec).join(" / ")}` : ""
+  ].filter(Boolean).join(" dan ");
+  announce(`${results.length} radio ditampilkan${filterNote ? ` untuk ${filterNote}` : ""}.`);
   loadMoreButton.hidden = !hasMore;
 }
 
@@ -1181,7 +1269,7 @@ function renderFavorites() {
 
   if (list.length === 0) {
     const term = searchInput.value.trim();
-    if (term || activeTag) {
+    if (term || activeTag || activeCodec) {
       favoriteList.innerHTML = `<div class="empty">Tidak ada stasiun favorit yang cocok dengan filter pencarian.</div>`;
     } else {
       favoriteList.innerHTML = `<div class="empty">Belum ada radio favorit tersimpan. Tekan ikon hati pada radio yang ingin disimpan.</div>`;
@@ -1230,7 +1318,7 @@ function insecureBadgeHtml(station) {
 // Negara tidak ditulis kalau sama dengan negara yang sedang dipilih, karena semua baris hasil
 // pencarian berasal dari negara itu. Bahasa yang namanya sama dengan negara stasiun ("Indonesia"
 // untuk stasiun Indonesia) juga tidak ditulis.
-function metaHtml(station, { withLanguage = true } = {}) {
+function metaHtml(station, { withLanguage = true, codecButton = false } = {}) {
   const parts = [];
   const country = localizedCountry(station.countryCode, station.country);
   const sameCountry = selectedCountry !== ALL_COUNTRIES
@@ -1238,9 +1326,19 @@ function metaHtml(station, { withLanguage = true } = {}) {
   if (!sameCountry) parts.push(escapeHtml(country || "Negara tidak diketahui"));
   const language = withLanguage ? formatLanguage(station.language) : "";
   if (language && language !== country) parts.push(escapeHtml(language));
-  const quality = qualityText(station);
-  if (quality) parts.push(`<span class="meta-tech" title="Format audio dan bitrate stream">${escapeHtml(quality)}</span>`);
+  const quality = qualityHtml(station, { codecButton });
+  if (quality) parts.push(`<span class="meta-tech" title="Format audio dan bitrate stream">${quality}</span>`);
   return parts.join(" • ");
+}
+
+// Di kartu stasiun, codec berupa tombol yang menyaring daftar dengan codec itu.
+function qualityHtml(station, { codecButton = false } = {}) {
+  const codec = stationCodec(station);
+  if (!codecButton || !codec) return escapeHtml(qualityText(station));
+  const kbps = bitrateKbps(station.bitrate);
+  const label = codecGroup(codec).join(" / ");
+  return `<button class="meta-codec" type="button" data-action="filter-codec" data-codec="${escapeHtml(codec)}"
+    aria-label="Tampilkan codec ${escapeHtml(label)}" title="Tampilkan stasiun dengan codec ${escapeHtml(label)}">${escapeHtml(codec)}</button>${kbps ? ` ${kbps} kbps` : ""}`;
 }
 
 // Codec ditampilkan di samping bitrate karena kbps saja tidak bisa dibandingkan antar codec:
@@ -1248,9 +1346,9 @@ function metaHtml(station, { withLanguage = true } = {}) {
 // kalau codec tidak terdeteksi, dan stream HLS video bisa berisi beberapa codec ("AAC,H.264"),
 // jadi hanya codec pertama yang diambil.
 function qualityText(station) {
-  const codec = (station.codec || "").split(",")[0].trim().toUpperCase();
+  const codec = stationCodec(station);
   const parts = [];
-  if (codec && codec !== "UNKNOWN") parts.push(codec);
+  if (codec) parts.push(codec);
   const kbps = bitrateKbps(station.bitrate);
   if (kbps) parts.push(`${kbps} kbps`);
   return parts.join(" ");
@@ -1296,7 +1394,7 @@ function createStationCard(station) {
 
         <div class="card-sub">
           ${insecureBadgeHtml(station)}
-          <p class="meta">${metaHtml(station)}</p>
+          <p class="meta">${metaHtml(station, { codecButton: true })}</p>
           ${tagsHtml}
         </div>
         <p class="card-flag" ${failedStations.has(station.id) ? "" : "hidden"}>
@@ -1442,6 +1540,9 @@ function handleCardAction(event) {
     setActiveTag(button.dataset.tag);
     // Tombol tag ikut hilang saat daftar dimuat ulang: fokus ke tombol hapus filter.
     clearTagButton.focus();
+  } else if (action === "filter-codec") {
+    setActiveCodec(button.dataset.codec);
+    clearCodecButton.focus();
   } else if (action === "retry-list") startNewSearch();
   else if (action === "search-all-countries") {
     setSelectedCountry(ALL_COUNTRIES);
@@ -1450,8 +1551,12 @@ function handleCardAction(event) {
   }
   else if (action === "clear-filters") {
     searchInput.value = "";
-    if (activeTag) setActiveTag("");
-    else startNewSearch();
+    // Genre dan codec dikosongkan lebih dulu, supaya daftar dimuat satu kali.
+    activeTag = "";
+    activeFilter.hidden = true;
+    activeCodec = "";
+    activeCodecFilter.hidden = true;
+    startNewSearch();
     searchInput.focus();
   }
 }

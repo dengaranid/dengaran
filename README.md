@@ -6,7 +6,7 @@ Gratis, tanpa iklan, tanpa daftar akun, dan tanpa cookie. Data stasiun berasal d
 
 ## Fitur
 
-- Cari stasiun per nama, negara, dan genre, lalu urutkan dari yang terpopuler, paling disukai, nama, atau bitrate. Negara dipilih dengan mengetik namanya, dan pilihan "Semua negara" mencari nama radio di semua negara sekaligus. Urutan bitrate tidak memuat stasiun yang mencatat bitrate di atas 4608 kbps, karena angka itu biasanya bitrate dalam bps atau bitrate total stream video.
+- Cari stasiun per nama, negara, genre, dan codec (klik codec di kartu stasiun; AAC dan AAC+ dihitung satu), lalu urutkan dari yang terpopuler, paling disukai, nama, atau bitrate. Negara dipilih dengan mengetik namanya, dan pilihan "Semua negara" mencari nama radio di semua negara sekaligus. Urutan bitrate tidak memuat stasiun yang mencatat bitrate di atas 4608 kbps, karena angka itu biasanya bitrate dalam bps atau bitrate total stream video.
 - Favorit dan Baru diputar disimpan di browser, tidak dikirim ke server.
 - Sleep Timer, pintasan keyboard, dan kontrol dari lock screen.
 - Stream yang terputus disambung ulang otomatis.

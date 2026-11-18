@@ -756,32 +756,74 @@ kbd {
   font-size: 0.92rem;
 }
 
-.active-filter {
+/* Filter genre dan codec yang aktif berbagi satu baris; turun ke baris berikutnya kalau
+   tidak muat. Baris disembunyikan kalau tidak ada filter yang aktif. */
+.active-filters {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 20px;
   padding: 8px 16px;
   border-top: 1px solid var(--border);
+}
+
+.active-filters:not(:has(> .active-filter:not([hidden]))) {
+  display: none;
+}
+
+.active-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   color: var(--muted);
   font-size: 0.92rem;
 }
 
-.active-filter strong {
-  color: var(--text);
+.active-filter[hidden] {
+  display: none;
 }
 
+/* Filter aktif tampil sebagai chip: nilai filter dan ikon X dalam satu tombol. Seluruh chip
+   menghapus filter; nama aksesibelnya "<nilai>, hapus filter genre" dari teks visually-hidden. */
 .filter-clear {
-  min-height: 36px;
-  padding: 0 12px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 0 8px 0 10px;
   border: 1px solid var(--border);
   color: var(--text);
   background: rgba(255, 255, 255, 0.06);
+  font-size: 0.85rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-clear strong {
+  overflow: hidden;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-clear .icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  transition: color 0.15s ease;
 }
 
 .filter-clear:hover {
-  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(224, 160, 136, 0.45);
+  background: rgba(224, 160, 136, 0.12);
+}
+
+.filter-clear:hover .icon {
+  color: var(--danger);
 }
 
 .btn {
@@ -1361,6 +1403,31 @@ kbd {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.86em;
   letter-spacing: 0.02em;
+}
+
+/* Codec di kartu stasiun: tombol filter yang tampil sebagai teks, ditandai garis bawah putus-putus. */
+.meta-codec {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.meta-codec:hover {
+  color: var(--text);
+  text-decoration-style: solid;
+}
+
+/* .card-sub .meta memotong isinya dengan overflow, jadi outline digambar di dalam tombol. */
+.meta-codec:focus-visible {
+  outline-offset: -2px;
 }
 
 .tags {
@@ -2448,7 +2515,7 @@ kbd {
 
   /* Tag tetap 24px secara visual, tapi area sentuhnya 32px tinggi, supaya ketukan yang
      sedikit meleset dari teks tag tidak jatuh ke baris lain. Tag mengganti filter genre,
-     dan baris "Genre: ... Hapus filter genre" tampil untuk membatalkannya. */
+     dan chip "Genre: <nilai> X" tampil untuk membatalkannya. */
   .tag {
     position: relative;
   }
@@ -2471,5 +2538,12 @@ kbd {
   .row .icon-btn {
     width: 44px;
     height: 44px;
+  }
+
+  /* Chip filter tetap 28px secara visual; area sentuhnya 44px tinggi. */
+  .filter-clear::after {
+    content: "";
+    position: absolute;
+    inset: -8px 0;
   }
 }
