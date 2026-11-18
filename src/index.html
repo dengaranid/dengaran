@@ -331,10 +331,10 @@
     <p id="resultAnnouncer" class="visually-hidden" role="status" aria-live="polite"></p>
   </div>
 
-  <dialog id="sleepDialog" class="dialog" aria-labelledby="sleepTitle">
+  <dialog id="sleepDialog" class="dialog" closedby="any" aria-labelledby="sleepTitle">
     <div class="dialog-header">
       <h2 id="sleepTitle">Pengatur Waktu Tidur</h2>
-      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+      <button class="icon-btn is-plain" type="button" commandfor="sleepDialog" command="close" aria-label="Tutup" title="Tutup">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
@@ -363,10 +363,10 @@
     </div>
   </dialog>
 
-  <dialog id="supportDialog" class="dialog" aria-labelledby="supportTitle">
+  <dialog id="supportDialog" class="dialog" closedby="any" aria-labelledby="supportTitle">
     <div class="dialog-header">
       <h2 id="supportTitle">Traktir kopi untuk Dengaran</h2>
-      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+      <button class="icon-btn is-plain" type="button" commandfor="supportDialog" command="close" aria-label="Tutup" title="Tutup">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
@@ -389,10 +389,10 @@
     </div>
   </dialog>
 
-  <dialog id="legalDialog" class="dialog" aria-labelledby="legalTitle">
+  <dialog id="legalDialog" class="dialog" closedby="any" aria-labelledby="legalTitle">
     <div class="dialog-header">
       <h2 id="legalTitle">Tentang Dengaran</h2>
-      <button class="icon-btn is-plain" type="button" data-close-dialog aria-label="Tutup" title="Tutup">
+      <button class="icon-btn is-plain" type="button" commandfor="legalDialog" command="close" aria-label="Tutup" title="Tutup">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>

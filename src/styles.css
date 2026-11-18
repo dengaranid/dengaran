@@ -242,7 +242,15 @@ kbd {
   flex-direction: column;
 }
 
+/* Scroll di dalam dialog atau di atas backdrop tidak diteruskan ke halaman di belakangnya.
+   overflow: hidden membuat ::backdrop jadi scroll container, syarat overscroll-behavior berlaku. */
+.dialog:modal {
+  overscroll-behavior: contain;
+}
+
 .dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgba(8, 9, 10, 0.72);
 }
 

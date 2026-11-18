@@ -959,7 +959,7 @@ async function fetchStationPage(params, signal) {
 }
 
 function sortStationData(data, order, reverse) {
-  const sorted = data.slice().sort((a, b) => order === "name"
+  const sorted = data.toSorted((a, b) => order === "name"
     ? String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" })
     : (Number(a[order]) || 0) - (Number(b[order]) || 0));
   return reverse ? sorted.reverse() : sorted;
@@ -1578,17 +1578,42 @@ function setupDialogs() {
     });
   });
 
-  document.querySelectorAll("dialog.dialog").forEach(dialog => {
-    dialog.querySelectorAll("[data-close-dialog]").forEach(button => {
-      button.addEventListener("click", () => dialog.close());
-    });
+  // Tombol tutup memakai command="close" dan klik di luar dialog memakai closedby="any" di HTML.
+  // Fallback di bawah hanya dipasang di browser yang belum mendukung salah satunya.
+  const supportsCommand = "commandForElement" in HTMLButtonElement.prototype;
+  const supportsClosedBy = "closedBy" in HTMLDialogElement.prototype;
 
-    // Klik di area gelap di luar kotak dialog menutupnya.
-    dialog.addEventListener("click", event => {
-      if (event.target === dialog) dialog.close();
-    });
+  document.querySelectorAll("dialog.dialog").forEach(dialog => {
+    if (!supportsCommand) {
+      dialog.querySelectorAll('button[command="close"]').forEach(button => {
+        button.addEventListener("click", () => dialog.close());
+      });
+    }
+
+    if (!supportsClosedBy && dialog.getAttribute("closedby") === "any") {
+      setupDialogLightDismiss(dialog);
+    }
 
     setupDialogTabs(dialog);
+  });
+}
+
+// Fallback closedby="any": tutup hanya kalau tekan dan lepas pointer sama-sama di luar kotak dialog.
+// Posisi pointer yang dicek, bukan event.target, supaya seleksi teks yang dilepas di backdrop
+// tidak menutup dialog.
+function setupDialogLightDismiss(dialog) {
+  const isOutside = event => {
+    const rect = dialog.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right ||
+      event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  let pressedOutside = false;
+  dialog.addEventListener("pointerdown", event => {
+    pressedOutside = isOutside(event);
+  });
+  dialog.addEventListener("pointerup", event => {
+    if (pressedOutside && isOutside(event)) dialog.close();
+    pressedOutside = false;
   });
 }
 
@@ -2858,9 +2883,7 @@ let apiServers = null;
 // karena isi respons menentukan ke mana fetch berikutnya dikirim.
 function getApiServers() {
   if (!apiServersPromise) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), API_SERVER_LIST_TIMEOUT_MS);
-    apiServersPromise = fetch(API_SERVER_LIST_URL, { signal: controller.signal })
+    apiServersPromise = fetch(API_SERVER_LIST_URL, { signal: AbortSignal.timeout(API_SERVER_LIST_TIMEOUT_MS) })
       .then(response => (response.ok ? response.json() : []))
       .then(list => {
         const names = Array.isArray(list)
@@ -2870,8 +2893,7 @@ function getApiServers() {
         apiServers = servers.length ? servers : API_MIRRORS;
         return apiServers;
       })
-      .catch(() => (apiServers = API_MIRRORS))
-      .finally(() => clearTimeout(timer));
+      .catch(() => (apiServers = API_MIRRORS));
   }
   return apiServersPromise;
 }
